@@ -57,7 +57,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   user: null,
-  loading: true, // Start with loading true to wait for auth state
+  loading: false,
   crops: [],
   userOffers: [],
   chats: [],
@@ -69,8 +69,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   login: async (email, password) => {
     set({ loading: true });
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // Don't set loading to false here - let the auth state listener handle it
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      // Fetch user profile from Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data() as User | undefined;
+      set({ user: userData || null, loading: false });
       return { error: null };
     } catch (error: unknown) {
       set({ loading: false });
@@ -87,7 +91,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Create user profile in Firestore
       const userProfile: User = { id: user.uid, created_at: createdAt, email, name, role, phone: null, address: null };
       await setDoc(doc(db, 'users', user.uid), userProfile);
-      // Don't set loading to false here - let the auth state listener handle it
+      set({ user: userProfile, loading: false });
       return { error: null, user: userProfile };
     } catch (error: unknown) {
       set({ loading: false });
@@ -121,7 +125,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         };
         await setDoc(doc(db, 'users', user.uid), userProfile);
       }
-      // Don't set loading to false here - let the auth state listener handle it
+      set({ user: userProfile, loading: false });
       return { error: null };
     } catch (error) {
       set({ loading: false });
@@ -150,7 +154,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         };
         await setDoc(doc(db, 'users', user.uid), userProfile);
       }
-      // Don't set loading to false here - let the auth state listener handle it
+      set({ user: userProfile, loading: false });
       return { error: null };
     } catch (error) {
       set({ loading: false });

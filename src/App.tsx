@@ -1,10 +1,5 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import { useAppStore } from './lib/store';
-import { auth, db } from './lib/firebase';
-import type { Database } from './lib/database.types';
 
 // Layouts
 import MainLayout from './layouts/MainLayout';
@@ -28,8 +23,6 @@ import TransactionDetails from './pages/retailer/TransactionDetails';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import Profile from './pages/Profile';
 
-type User = Database['public']['Tables']['users']['Row'];
-
 // Protected route wrapper
 const ProtectedRoute = ({ 
   children, 
@@ -39,63 +32,20 @@ const ProtectedRoute = ({
   requiredRole?: 'farmer' | 'retailer' 
 }) => {
   const user = useAppStore(state => state.user);
-  const loading = useAppStore(state => state.loading);
-  
-  // Show loading while checking auth state
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
   
   if (!user) {
     return <Navigate to="/login" replace />;
   }
   
   if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/\" replace />;
   }
   
   return children;
 };
 
 function App() {
-  const { user, loading } = useAppStore();
-
-  // Initialize Firebase auth state listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          // Fetch user profile from Firestore
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          const userData = userDoc.data() as User | undefined;
-          
-          if (userData) {
-            useAppStore.setState({ user: userData, loading: false });
-          } else {
-            // User exists in Firebase Auth but not in Firestore
-            console.error('User profile not found in Firestore');
-            useAppStore.setState({ user: null, loading: false });
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-          useAppStore.setState({ user: null, loading: false });
-        }
-      } else {
-        // No user is signed in
-        useAppStore.setState({ user: null, loading: false });
-      }
-    });
-
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, []);
+  // TODO: Replace Supabase logic with Firebase Auth logic for session and user state.
 
   return (
     <Routes>
