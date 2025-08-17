@@ -110,10 +110,20 @@ const Checkout = () => {
             
             toast.success('Payment successful! Payment ID: ' + response.razorpay_payment_id);
             
-            // Refresh only necessary data instead of all data to prevent logout
-            await useAppStore.getState().refreshAfterPayment();
+            // Optimistically update the local state without page refresh
+            // Update the offer status in local state
+            const { userOffers } = useAppStore.getState();
+            const updatedOffers = userOffers.map(offerItem => 
+              offerItem.id === offer.id 
+                ? { ...offerItem, status: 'completed' } 
+                : offerItem
+            );
+            useAppStore.setState({ userOffers: updatedOffers });
             
-            // Show success screen
+            // Refresh only necessary data in background without affecting UI
+            useAppStore.getState().refreshAfterPayment().catch(console.error);
+            
+            // Show success screen without page refresh
             setIsSuccess(true);
             
           } catch (error) {

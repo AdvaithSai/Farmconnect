@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Filter, ShoppingBag, MessageCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useAppStore } from '../../lib/store';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -145,27 +146,39 @@ const RetailerDashboard = () => {
       order_id: data.order.id,
       handler: async function (response: RazorpayResponse) {
         alert('Payment successful! Payment ID: ' + response.razorpay_payment_id);
-        // Mark transaction as completed
-        try {
-          // Find the transaction for this offer
-          const pendingTxn = transactions.find(t => t.offer_id === offer.id && t.status === 'pending_payment');
-          if (pendingTxn) {
-            await fetch('http://localhost:3000/mark-transaction-completed', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transactionId: pendingTxn.id }),
-            });
-            await fetch('http://localhost:3000/mark-crop-sold', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cropId: pendingTxn.crop_id }),
-            });
-            // Reload the page to update UI for both dashboards
-            window.location.reload();
-          }
-        } catch {
-          alert('Payment succeeded but failed to update transaction/crop status. Please refresh.');
-        }
+            // Mark transaction as completed
+            try {
+              // Find the transaction for this offer
+              const pendingTxn = transactions.find(t => t.offer_id === offer.id && t.status === 'pending_payment');
+              if (pendingTxn) {
+                await fetch('http://localhost:3000/mark-transaction-completed', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ transactionId: pendingTxn.id }),
+                });
+                await fetch('http://localhost:3000/mark-crop-sold', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ cropId: pendingTxn.crop_id }),
+                });
+                
+                // Update local state without page refresh
+                setTransactions(prev => 
+                  prev.map(t => 
+                    t.id === pendingTxn.id 
+                      ? { ...t, status: 'completed' } 
+                      : t
+                  )
+                );
+                
+                // Refresh crops and transactions in background
+                fetchCrops();
+                
+                toast.success('Payment successful! Crop marked as sold.');
+              }
+            } catch {
+              alert('Payment succeeded but failed to update transaction/crop status. Please refresh.');
+            }
       },
       prefill: {
         email: user?.email,

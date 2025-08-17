@@ -609,6 +609,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Safer refresh function for payment completion
   refreshAfterPayment: async () => {
     try {
+      // Only refresh offers and crops without affecting user session
       await get().fetchUserOffers();
       await get().fetchCrops();
     } catch (error) {
