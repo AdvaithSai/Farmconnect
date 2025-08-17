@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Google Translate Widget Styling */
+#google_translate_element {
+  display: inline-block;
+}
+
+#google_translate_element .goog-te-gadget {
+  color: white !important;
+  font-family: inherit !important;
+  font-size: 14px !important;
+}
+
+#google_translate_element .goog-te-gadget .goog-te-combo {
+  background-color: transparent !important;
+  color: white !important;
+  border: none !important;
+  outline: none !important;
+  font-family: inherit !important;
+  font-size: 14px !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+}
+
+#google_translate_element .goog-te-gadget .goog-te-combo:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+#google_translate_element .goog-te-gadget .goog-te-combo option {
+  background-color: #15803d !important;
+  color: white !important;
+}
+
+#google_translate_element .goog-te-banner-frame {
+  display: none !important;
+}
+
+#google_translate_element .goog-te-menu-value {
+  color: white !important;
+}
+
+#google_translate_element .goog-te-menu-value span:first-child {
+  color: white !important;
+}
+
+#google_translate_element .goog-te-menu-value span:last-child {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Hide Google top banner and extra frames */
+body .goog-te-banner-frame.skiptranslate,
+body .goog-te-gadget-icon,
+body .goog-te-balloon-frame,
+body .goog-te-menu-frame,
+body .goog-te-menu2 {
+  display: none !important;
+  height: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Hide the horizontal language list */
+#google_translate_element .goog-te-gadget-simple .goog-te-menu-value span {
+  display: none !important;
+}
+#google_translate_element .goog-te-gadget-simple .goog-te-menu-value span:first-child {
+  display: inline !important;
+}
+
+/* Only show the dropdown */
+#google_translate_element .goog-te-gadget-simple {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
