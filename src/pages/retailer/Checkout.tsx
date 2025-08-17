@@ -110,8 +110,8 @@ const Checkout = () => {
             
             toast.success('Payment successful! Payment ID: ' + response.razorpay_payment_id);
             
-            // Refresh all data globally
-            await useAppStore.getState().refreshAllData();
+            // Refresh only necessary data instead of all data to prevent logout
+            await useAppStore.getState().refreshAfterPayment();
             
             // Show success screen
             setIsSuccess(true);

@@ -52,11 +52,12 @@ interface AppState {
   respondToOffer: (offerId: string, newStatus: 'accepted' | 'rejected') => Promise<{ error: unknown | null }>;
   processPayment: () => Promise<{ error: unknown | null, transaction: Transaction | null }>;
   refreshAllData: () => Promise<void>;
+  refreshAfterPayment: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   user: null,
-  loading: false,
+  loading: true, // Start with loading true to wait for auth state
   crops: [],
   userOffers: [],
   chats: [],
@@ -68,12 +69,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   login: async (email, password) => {
     set({ loading: true });
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      // Fetch user profile from Firestore
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      const userData = userDoc.data() as User | undefined;
-      set({ user: userData || null, loading: false });
+      await signInWithEmailAndPassword(auth, email, password);
+      // Don't set loading to false here - let the auth state listener handle it
       return { error: null };
     } catch (error: unknown) {
       set({ loading: false });
@@ -90,7 +87,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Create user profile in Firestore
       const userProfile: User = { id: user.uid, created_at: createdAt, email, name, role, phone: null, address: null };
       await setDoc(doc(db, 'users', user.uid), userProfile);
-      set({ user: userProfile, loading: false });
+      // Don't set loading to false here - let the auth state listener handle it
       return { error: null, user: userProfile };
     } catch (error: unknown) {
       set({ loading: false });
@@ -124,7 +121,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         };
         await setDoc(doc(db, 'users', user.uid), userProfile);
       }
-      set({ user: userProfile, loading: false });
+      // Don't set loading to false here - let the auth state listener handle it
       return { error: null };
     } catch (error) {
       set({ loading: false });
@@ -153,7 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         };
         await setDoc(doc(db, 'users', user.uid), userProfile);
       }
-      set({ user: userProfile, loading: false });
+      // Don't set loading to false here - let the auth state listener handle it
       return { error: null };
     } catch (error) {
       set({ loading: false });
@@ -182,38 +179,45 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ crops, loading: false });
       }
     } catch (error) {
+      console.error('Error fetching crops:', error);
       set({ loading: false });
-      throw error;
+      // Don't throw error to prevent logout
     }
   },
   
   fetchUserOffers: async () => {
-    const user = get().user;
-    if (!user) {
-      set({ userOffers: [] });
-      return;
-    }
-    let offersQuery;
-    if (user.role === 'farmer') {
-      // Fetch all crops for this farmer
-      const cropsQuery = query(collection(db, 'crops'), where('farmer_id', '==', user.id));
-      const cropsSnapshot = await getDocs(cropsQuery);
-      const cropIds = cropsSnapshot.docs.map(doc => doc.id);
-      if (cropIds.length === 0) {
+    try {
+      const user = get().user;
+      if (!user) {
         set({ userOffers: [] });
         return;
       }
-      offersQuery = query(collection(db, 'offers'), where('crop_id', 'in', cropIds));
-    } else if (user.role === 'retailer') {
-      // Fetch all offers made by this retailer
-      offersQuery = query(collection(db, 'offers'), where('retailer_id', '==', user.id));
-    } else {
+      let offersQuery;
+      if (user.role === 'farmer') {
+        // Fetch all crops for this farmer
+        const cropsQuery = query(collection(db, 'crops'), where('farmer_id', '==', user.id));
+        const cropsSnapshot = await getDocs(cropsQuery);
+        const cropIds = cropsSnapshot.docs.map(doc => doc.id);
+        if (cropIds.length === 0) {
+          set({ userOffers: [] });
+          return;
+        }
+        offersQuery = query(collection(db, 'offers'), where('crop_id', 'in', cropIds));
+      } else if (user.role === 'retailer') {
+        // Fetch all offers made by this retailer
+        offersQuery = query(collection(db, 'offers'), where('retailer_id', '==', user.id));
+      } else {
+        set({ userOffers: [] });
+        return;
+      }
+      const offersSnapshot = await getDocs(offersQuery);
+      const offers = offersSnapshot.docs.map(doc => ({ ...(doc.data() as Offer), id: doc.id }));
+      set({ userOffers: offers });
+    } catch (error) {
+      console.error('Error fetching user offers:', error);
       set({ userOffers: [] });
-      return;
+      // Don't throw error to prevent logout
     }
-    const offersSnapshot = await getDocs(offersQuery);
-    const offers = offersSnapshot.docs.map(doc => ({ ...(doc.data() as Offer), id: doc.id }));
-    set({ userOffers: offers });
   },
   
   fetchUserChats: async () => {
@@ -596,6 +600,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().fetchUserOffers();
     await get().fetchUserChats();
     await get().fetchFarmerTransactions();
+  },
+  
+  // Safer refresh function for payment completion
+  refreshAfterPayment: async () => {
+    try {
+      await get().fetchUserOffers();
+      await get().fetchCrops();
+    } catch (error) {
+      console.error('Error refreshing data after payment:', error);
+      // Don't throw error to prevent logout
+    }
   },
   
   processPayment: async () => {

@@ -9,7 +9,9 @@ import LocationTracker from './LocationTracker';
 // Declare Razorpay types for TypeScript
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: Record<string, unknown>) => {
+      open: () => void;
+    };
   }
 }
 
@@ -39,12 +41,12 @@ interface RazorpayResponse {
   razorpay_signature: string;
 }
 
-declare global {
-  interface Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-      open: () => void;
-    };
-  }
+interface Offer {
+  id: string;
+  crop_id: string;
+  retailer_id: string;
+  status: string;
+  price: number;
 }
 
 const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
@@ -60,6 +62,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
 
   // Real-time listener for messages in this chat
   useEffect(() => {
+    if (!chatId) return;
+    
     const q = query(
       collection(db, 'messages'),
       where('chat_id', '==', chatId),
@@ -72,9 +76,13 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       if (user) {
         for (const msg of msgs) {
           if (msg.sender_id !== user.id && (!msg.deliveredTo || !msg.deliveredTo.includes(user.id))) {
-            await updateDoc(doc(db, 'messages', msg.id), {
-              deliveredTo: arrayUnion(user.id)
-            });
+            try {
+              await updateDoc(doc(db, 'messages', msg.id), {
+                deliveredTo: arrayUnion(user.id)
+              });
+            } catch (error) {
+              console.error('Error updating delivery status:', error);
+            }
           }
         }
       }
@@ -84,22 +92,30 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
 
   // Mark all messages from the other user as read for this chat in Firestore
   useEffect(() => {
-    if (messages.length > 0 && user) {
+    if (messages.length > 0 && user && chatId) {
       const otherUserId = messages.find(msg => msg.sender_id !== user.id)?.sender_id;
       const latestOtherMsg = [...messages].reverse().find(msg => msg.sender_id === otherUserId);
       if (latestOtherMsg) {
-        setDoc(doc(db, 'chat_reads', `${chatId}_${user.id}`), {
-          chat_id: chatId,
-          user_id: user.id,
-          last_read_at: latestOtherMsg.created_at,
-        });
+        try {
+          setDoc(doc(db, 'chat_reads', `${chatId}_${user.id}`), {
+            chat_id: chatId,
+            user_id: user.id,
+            last_read_at: latestOtherMsg.created_at,
+          });
+        } catch (error) {
+          console.error('Error updating chat read status:', error);
+        }
       }
       // Read receipt: mark as read for all messages not sent by this user
       for (const msg of messages) {
         if (msg.sender_id !== user.id && (!msg.readBy || !msg.readBy.includes(user.id))) {
-          updateDoc(doc(db, 'messages', msg.id), {
-            readBy: arrayUnion(user.id)
-          });
+          try {
+            updateDoc(doc(db, 'messages', msg.id), {
+              readBy: arrayUnion(user.id)
+            });
+          } catch (error) {
+            console.error('Error updating read status:', error);
+          }
         }
       }
     }
@@ -122,7 +138,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       } else {
         setMessage('');
       }
-    } catch {
+    } catch (error) {
+      console.error('Error sending message:', error);
       toast.error('Failed to send message');
     } finally {
       setIsLoading(false);
@@ -164,7 +181,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
         toast.success('Price updated and farmer notified!');
         setPrice('');
       }
-    } catch {
+    } catch (error) {
+      console.error('Error updating offer price:', error);
       toast.error('Failed to update offer price');
     } finally {
       setIsPriceLoading(false);
@@ -185,7 +203,6 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
   // Render message status icon for current user's messages
   const renderStatusIcon = (msg: Message) => {
     if (!isOwnMessage(msg.sender_id)) return null;
-    // const otherUserId = user?.role === 'farmer' ? msg.chat_id.split('_')[1] : msg.chat_id.split('_')[0];
     // If all recipients have read
     if (msg.readBy && msg.readBy.length > 1) {
       return <CheckCheck size={16} className="inline ml-1 text-blue-500" />;
@@ -199,7 +216,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
   };
 
   // Razorpay payment handler
-  const handlePayNow = async (offer: { id: string; price: number }) => {
+  const handlePayNow = async (offer: Offer) => {
     try {
       // Fetch Razorpay Key ID from backend
       const keyRes = await fetch('http://localhost:3000/razorpay-key');
@@ -313,8 +330,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
             
             toast.success('Payment successful! You can now track the delivery.');
             
-            // Refresh data
-            await useAppStore.getState().refreshAllData();
+            // Refresh only necessary data instead of all data to prevent logout
+            await useAppStore.getState().refreshAfterPayment();
             
           } catch (error) {
             console.error('Error updating transaction/crop status:', error);
@@ -326,12 +343,6 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
         },
         theme: { color: '#3399cc' },
       };
-      // Add TypeScript declaration for Razorpay
-      declare global {
-        interface Window {
-          Razorpay: any;
-        }
-      }
       
       // Make sure Razorpay is loaded before initializing
       const loadRazorpayScript = () => {
@@ -377,7 +388,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
 
   // Check if there's a completed transaction for this chat
   useEffect(() => {
-    if (currentChat && user) {
+    if (currentChat && user && userOffers.length > 0) {
       try {
         // Query for transactions related to this chat's offer
         const q = query(

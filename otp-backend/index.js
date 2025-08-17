@@ -1,8 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
-// Temporarily comment out Firebase admin to focus on payment functionality
-// const admin = require('firebase-admin');
+// Uncomment Firebase admin for payment functionality
+const admin = require('firebase-admin');
 const Razorpay = require('razorpay');
 require('dotenv').config();
 
@@ -10,14 +10,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Temporarily comment out Firebase initialization
-// admin.initializeApp({
-//   credential: admin.credential.cert({
-//     projectId: process.env.FIREBASE_PROJECT_ID || 'farmer-d3cc7',
-//     clientEmail: process.env.FIREBASE_CLIENT_EMAIL || 'firebase-adminsdk-fbsvc@farmer-d3cc7.iam.gserviceaccount.com',
-//     privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-//   }),
-// });
+// Uncomment Firebase initialization
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID || 'farmer-d3cc7',
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL || 'firebase-adminsdk-fbsvc@farmer-d3cc7.iam.gserviceaccount.com',
+    privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+  }),
+});
 
 const otps = {}; // In-memory store for demo; use a DB for production
 
@@ -153,40 +153,58 @@ app.get('/razorpay-key', (req, res) => {
 // Mark transaction as completed after payment
 app.post('/mark-transaction-completed', async (req, res) => {
   const { transactionId } = req.body;
-  // Temporarily comment out Firebase operations
-  // try {
-  //   await admin.firestore().collection('transactions').doc(transactionId).update({
-  //     status: 'completed'
-  //   });
-  //   res.json({ success: true });
-  // } catch (err) {
-  //   res.json({ success: false, error: err.message });
-  // }
+  console.log('[mark-transaction-completed] transactionId:', transactionId);
   
-  // For now, just return success
-  console.log('Transaction marked as completed (mock):', transactionId);
-  res.json({ success: true, message: 'Transaction marked as completed (mock)' });
+  try {
+    // First, try to find the transaction by offer_id since that's what we're passing
+    const transactionsRef = admin.firestore().collection('transactions');
+    const querySnapshot = await transactionsRef.where('offer_id', '==', transactionId).get();
+    
+    if (!querySnapshot.empty) {
+      // Update the first matching transaction
+      const transactionDoc = querySnapshot.docs[0];
+      await transactionDoc.ref.update({
+        status: 'completed',
+        completed_at: new Date().toISOString()
+      });
+      console.log('[mark-transaction-completed] Transaction updated successfully');
+      res.json({ success: true });
+    } else {
+      // If not found by offer_id, try by document ID
+      try {
+        await admin.firestore().collection('transactions').doc(transactionId).update({
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        });
+        console.log('[mark-transaction-completed] Transaction updated successfully by ID');
+        res.json({ success: true });
+      } catch (idError) {
+        console.error('[mark-transaction-completed] Error updating by ID:', idError);
+        res.json({ success: false, error: 'Transaction not found' });
+      }
+    }
+  } catch (err) {
+    console.error('[mark-transaction-completed] Error:', err);
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // Mark crop as sold
 app.post('/mark-crop-sold', async (req, res) => {
   const { cropId } = req.body;
   console.log('[mark-crop-sold] cropId:', cropId);
-  // Temporarily comment out Firebase operations
-  // try {
-  //   const result = await admin.firestore().collection('crops').doc(cropId).update({
-  //     status: 'sold'
-  //   });
-  //   console.log('[mark-crop-sold] update result:', result);
-  //   res.json({ success: true });
-  // } catch (err) {
-  //   console.error('[mark-crop-sold] error:', err);
-  //   res.json({ success: false, error: err.message });
-  // }
   
-  // For now, just return success
-  console.log('Crop marked as sold (mock):', cropId);
-  res.json({ success: true, message: 'Crop marked as sold (mock)' });
+  try {
+    const result = await admin.firestore().collection('crops').doc(cropId).update({
+      status: 'sold',
+      sold_at: new Date().toISOString()
+    });
+    console.log('[mark-crop-sold] update result:', result);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[mark-crop-sold] error:', err);
+    res.json({ success: false, error: err.message });
+  }
 });
 
 // Update farmer location for delivery tracking
