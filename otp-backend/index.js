@@ -1,63 +1,48 @@
-require('dotenv').config();
-const express = require('express');
+const admin = require('firebase-admin');
 const cors = require('cors');
+const express = require('express');
 const nodemailer = require('nodemailer');
 const Razorpay = require('razorpay');
 const rateLimit = require('express-rate-limit');
-const admin = require('firebase-admin');
 
 const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-// ---------- Firebase Admin Init ----------
 function normalizePrivateKey(pk) {
   if (!pk) return '';
   return pk.replace(/^"(.*)"$/, '$1').replace(/\\n/g, '\n');
 }
 
 if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
-      }),
-    });
-    console.log('[INIT] Firebase Admin initialized');
-  } catch (e) {
-    console.error('[INIT][FATAL] Firebase init failed:', e.message);
-  }
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
+    }),
+  });
 }
 
-// ---------- Config & Globals ----------
 const OTP_TTL_MS = 10 * 60 * 1000;
 const MAX_REQUESTS_PER_EMAIL_10M = 5;
 const MAX_VERIFY_ATTEMPTS = 6;
 const ENABLE_LOGS = process.env.ENABLE_LOGS === 'true';
 const emailRegex = /^[^@]+@[^@]+\.[^@]+$/;
-const otps = {}; // In-memory (move to Firestore if scaling)
+const otps = {};
 
-function log(...a) { if (ENABLE_LOGS) console.log(...a); }
+function log(...args) {
+  if (ENABLE_LOGS) console.log(...args);
+}
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Cleanup expired OTPs
-setInterval(() => {
-  const now = Date.now();
-  Object.keys(otps).forEach(email => {
-    if (now > otps[email].expires) delete otps[email];
-  });
-}, 5 * 60 * 1000);
-
-// ---------- Mail Transport ----------
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS, // Gmail App Password
+    pass: process.env.GMAIL_PASS,
   },
 });
 
@@ -65,13 +50,11 @@ transporter.verify()
   .then(() => console.log('[MAIL] Transport ready'))
   .catch(err => console.error('[MAIL] Transport verify failed:', err.message));
 
-// ---------- Razorpay ----------
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || '',
   key_secret: process.env.RAZORPAY_KEY_SECRET || '',
 });
 
-// ---------- Rate Limiter ----------
 const otpRequestLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 50,
@@ -79,12 +62,15 @@ const otpRequestLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// ---------- Routes ----------
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(otps).forEach(email => {
+    if (now > otps[email].expires) delete otps[email];
+  });
+}, 5 * 60 * 1000);
 
-// Health
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
-// Request OTP
 app.post('/request-otp', otpRequestLimiter, async (req, res) => {
   try {
     const { email } = req.body;
@@ -122,7 +108,6 @@ app.post('/request-otp', otpRequestLimiter, async (req, res) => {
   }
 });
 
-// Verify OTP
 app.post('/verify-otp', (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -147,12 +132,10 @@ app.post('/verify-otp', (req, res) => {
     res.status(500).json({ success: false, error: 'Verification failed' });
   }
 });
-// ...existing code...
 
-// ---------- Greeting Email Helper ----------
-async function sendGreetingEmail(email, name = "") {
+async function sendGreetingEmail(email, name = '') {
   const message = `
-    Hello${name ? " " + name : ""},
+    Hello${name ? ' ' + name : ''},
 
     Welcome to FarmConnect! We're excited to have you join our community of farmers and retailers.
     With FarmConnect, you can easily list your crops, connect with buyers, and manage your transactions securely.
@@ -165,12 +148,11 @@ async function sendGreetingEmail(email, name = "") {
   await transporter.sendMail({
     from: `"FarmConnect" <${process.env.GMAIL_USER}>`,
     to: email,
-    subject: "Welcome to FarmConnect!",
+    subject: 'Welcome to FarmConnect!',
     text: message,
   });
 }
 
-// ---------- Registration Endpoint ----------
 app.post('/register', async (req, res) => {
   const { email, password, name } = req.body;
   try {
@@ -193,10 +175,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// ---------- Registration Endpoint ----------
-
-
-// Reset Password
 app.post('/reset-password', async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
@@ -230,7 +208,6 @@ app.post('/reset-password', async (req, res) => {
   }
 });
 
-// Create Razorpay Order
 app.post('/create-order', async (req, res) => {
   try {
     const { amount, currency = 'INR', receipt } = req.body;
@@ -257,14 +234,12 @@ app.post('/create-order', async (req, res) => {
   }
 });
 
-// Mark Transaction Completed (stub)
 app.post('/mark-transaction-completed', (req, res) => {
   const { transactionId } = req.body;
   log('[TXN][COMPLETE]', transactionId);
   res.json({ success: true });
 });
 
-// Mark Crop Sold
 app.post('/mark-crop-sold', async (req, res) => {
   try {
     const { cropId } = req.body;
@@ -277,14 +252,9 @@ app.post('/mark-crop-sold', async (req, res) => {
   }
 });
 
-// ---------- Error Fallback ----------
 app.use((err, _req, res, _next) => {
   console.error('[UNHANDLED]', err);
   res.status(500).json({ success: false, error: 'Server error' });
 });
 
-// ---------- Start ----------
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`[SERVER] Running on port ${PORT}`);
-});
+module.exports = app;
