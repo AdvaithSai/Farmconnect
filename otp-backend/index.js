@@ -1,9 +1,15 @@
-const admin = require('firebase-admin');
-const cors = require('cors');
+// ...existing code...
 const express = require('express');
+const serverless = require('serverless-http');
+const cors = require('cors');
 const nodemailer = require('nodemailer');
 const Razorpay = require('razorpay');
 const rateLimit = require('express-rate-limit');
+const admin = require('firebase-admin');
+
+if (!process.env.VERCEL) {
+  require('dotenv').config();
+}
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -257,4 +263,4 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ success: false, error: 'Server error' });
 });
 
-module.exports = app;
+module.exports = serverless(app);
