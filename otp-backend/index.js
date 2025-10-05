@@ -1,244 +1,290 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
-// Temporarily comment out Firebase admin to focus on payment functionality
-// const admin = require('firebase-admin');
 const Razorpay = require('razorpay');
-require('dotenv').config();
+const rateLimit = require('express-rate-limit');
+const admin = require('firebase-admin');
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true }));
 app.use(express.json());
 
-// Temporarily comment out Firebase initialization
-// admin.initializeApp({
-//   credential: admin.credential.cert({
-//     projectId: process.env.FIREBASE_PROJECT_ID || 'farmer-d3cc7',
-//     clientEmail: process.env.FIREBASE_CLIENT_EMAIL || 'firebase-adminsdk-fbsvc@farmer-d3cc7.iam.gserviceaccount.com',
-//     privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-//   }),
-// });
+// ---------- Firebase Admin Init ----------
+function normalizePrivateKey(pk) {
+  if (!pk) return '';
+  return pk.replace(/^"(.*)"$/, '$1').replace(/\\n/g, '\n');
+}
 
-const otps = {}; // In-memory store for demo; use a DB for production
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
+      }),
+    });
+    console.log('[INIT] Firebase Admin initialized');
+  } catch (e) {
+    console.error('[INIT][FATAL] Firebase init failed:', e.message);
+  }
+}
 
+// ---------- Config & Globals ----------
+const OTP_TTL_MS = 10 * 60 * 1000;
+const MAX_REQUESTS_PER_EMAIL_10M = 5;
+const MAX_VERIFY_ATTEMPTS = 6;
+const ENABLE_LOGS = process.env.ENABLE_LOGS === 'true';
+const emailRegex = /^[^@]+@[^@]+\.[^@]+$/;
+const otps = {}; // In-memory (move to Firestore if scaling)
+
+function log(...a) { if (ENABLE_LOGS) console.log(...a); }
+function generateOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Cleanup expired OTPs
+setInterval(() => {
+  const now = Date.now();
+  Object.keys(otps).forEach(email => {
+    if (now > otps[email].expires) delete otps[email];
+  });
+}, 5 * 60 * 1000);
+
+// ---------- Mail Transport ----------
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
+    pass: process.env.GMAIL_PASS, // Gmail App Password
   },
 });
 
+transporter.verify()
+  .then(() => console.log('[MAIL] Transport ready'))
+  .catch(err => console.error('[MAIL] Transport verify failed:', err.message));
+
+// ---------- Razorpay ----------
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
 });
 
-// 1. Request OTP
-app.post('/request-otp', async (req, res) => {
-  const { email } = req.body;
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  otps[email] = { otp, expires: Date.now() + 10 * 60 * 1000 };
-
-  await transporter.sendMail({
-    from: `"Your App" <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: 'Your OTP Code',
-    text: `Your OTP code is: ${otp}`,
-  });
-
-  res.json({ success: true });
+// ---------- Rate Limiter ----------
+const otpRequestLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-// 2. Verify OTP
-app.post('/verify-otp', (req, res) => {
-  const { email, otp } = req.body;
-  const record = otps[email];
-  if (!record) return res.json({ success: false, error: 'OTP not found' });
-  if (Date.now() > record.expires) return res.json({ success: false, error: 'OTP expired' });
-  if (otp !== record.otp) return res.json({ success: false, error: 'Invalid OTP' });
-  res.json({ success: true });
-});
+// ---------- Routes ----------
 
-// 3. Reset Password
-app.post('/reset-password', async (req, res) => {
-  const { email, otp, newPassword } = req.body;
-  const record = otps[email];
-  if (!record) return res.json({ success: false, error: 'OTP not found' });
-  if (Date.now() > record.expires) return res.json({ success: false, error: 'OTP expired' });
-  if (otp !== record.otp) return res.json({ success: false, error: 'Invalid OTP' });
+// Health
+app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
-  // Temporarily comment out Firebase auth operations
-  // try {
-  //   const user = await admin.auth().getUserByEmail(email);
-  //   await admin.auth().updateUser(user.uid, { password: newPassword });
-  //   delete otps[email];
-  //   res.json({ success: true });
-  // } catch (err) {
-  //   res.json({ success: false, error: err.message });
-  // }
-  
-  // For now, just return success
-  delete otps[email];
-  res.json({ success: true, message: 'Password reset functionality temporarily disabled' });
-});
-
-// Create Razorpay order
-app.post('/create-order', async (req, res) => {
-  console.log('Received order creation request:', req.body);
-  
-  // Validate Razorpay configuration
-  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    console.error('Razorpay credentials not properly configured');
-    return res.status(500).json({ 
-      success: false, 
-      error: 'Payment gateway not properly configured' 
-    });
-  }
-  
-  console.log('Razorpay key ID:', process.env.RAZORPAY_KEY_ID);
-  console.log('Razorpay key secret length:', process.env.RAZORPAY_KEY_SECRET ? process.env.RAZORPAY_KEY_SECRET.length : 0);
-  
-  const { amount, currency = 'INR', receipt } = req.body;
-  
-  // Validate amount
-  if (!amount || isNaN(amount) || amount <= 0) {
-    console.error('Invalid amount provided:', amount);
-    return res.status(400).json({ success: false, error: 'Invalid amount provided' });
-  }
-  
-  // Validate receipt
-  if (!receipt) {
-    console.error('No receipt ID provided');
-    return res.status(400).json({ success: false, error: 'Receipt ID is required' });
-  }
-  
+// Request OTP
+app.post('/request-otp', otpRequestLimiter, async (req, res) => {
   try {
-    // Prepare order data
-    const orderData = {
-      amount: Math.round(amount * 100), // amount in paise, ensure it's an integer
-      currency,
-      receipt,
-      payment_capture: 1
+    const { email } = req.body;
+    if (!email || !emailRegex.test(email)) {
+      return res.status(400).json({ success: false, error: 'Invalid email' });
+    }
+    const now = Date.now();
+    const record = otps[email] || { history: [], attempts: 0 };
+    record.history = (record.history || []).filter(ts => now - ts < 10 * 60 * 1000);
+    if (record.history.length >= MAX_REQUESTS_PER_EMAIL_10M) {
+      return res.status(429).json({ success: false, error: 'Too many OTP requests. Try later.' });
+    }
+
+    const otp = generateOtp();
+    otps[email] = {
+      otp,
+      expires: now + OTP_TTL_MS,
+      attempts: 0,
+      history: [...record.history, now],
+      verified: false,
     };
-    
-    console.log('Creating Razorpay order with:', orderData);
-    
-    // Create order
-    const order = await razorpay.orders.create(orderData);
-    
-    console.log('Order created successfully:', order);
-    res.json({ success: true, order });
-  
+
+    await transporter.sendMail({
+      from: `"FarmConnect OTP" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: 'Your FarmConnect OTP',
+      text: `Your OTP is ${otp}. It expires in 10 minutes.`,
+    });
+
+    log('[OTP][SENT]', email);
+    res.json({ success: true });
   } catch (err) {
-    console.error('Error creating Razorpay order:', err);
+    console.error('[OTP][REQUEST] Error:', err);
+    res.status(500).json({ success: false, error: 'Failed to send OTP' });
+  }
+});
+
+// Verify OTP
+app.post('/verify-otp', (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const record = otps[email];
+    if (!record) return res.json({ success: false, error: 'OTP not found' });
+    if (Date.now() > record.expires) {
+      delete otps[email];
+      return res.json({ success: false, error: 'OTP expired' });
+    }
+    if (record.attempts >= MAX_VERIFY_ATTEMPTS) {
+      delete otps[email];
+      return res.json({ success: false, error: 'Too many attempts' });
+    }
+    record.attempts++;
+    if (otp !== record.otp) {
+      return res.json({ success: false, error: 'Invalid OTP' });
+    }
+    record.verified = true;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[OTP][VERIFY] Error:', err);
+    res.status(500).json({ success: false, error: 'Verification failed' });
+  }
+});
+// ...existing code...
+
+// ---------- Greeting Email Helper ----------
+async function sendGreetingEmail(email, name = "") {
+  const message = `
+    Hello${name ? " " + name : ""},
+
+    Welcome to FarmConnect! We're excited to have you join our community of farmers and retailers.
+    With FarmConnect, you can easily list your crops, connect with buyers, and manage your transactions securely.
+    Explore our platform to discover new opportunities and make the most of your harvest.
+    If you have any questions or need support, our team is here to help.
+
+    Happy farming!
+    The FarmConnect Team
+  `;
+  await transporter.sendMail({
+    from: `"FarmConnect" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: "Welcome to FarmConnect!",
+    text: message,
+  });
+}
+
+// ---------- Registration Endpoint ----------
+app.post('/register', async (req, res) => {
+  const { email, password, name } = req.body;
+  try {
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: name,
+    });
+    try {
+      await sendGreetingEmail(email, name);
+      console.log(`[GREETING] Sent to ${email}`);
+    } catch (mailErr) {
+      console.error(`[GREETING][ERROR] Failed to send greeting to ${email}:`, mailErr.message);
+      return res.status(500).json({ success: false, error: 'User created, but greeting email failed.' });
+    }
+    res.json({ success: true, uid: userRecord.uid });
+  } catch (err) {
+    console.error('[REGISTER][ERROR]', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Expose Razorpay Key ID for frontend
-app.get('/razorpay-key', (req, res) => {
-  console.log('Razorpay key requested');
-  
-  // Check if Razorpay key is configured
-  if (!process.env.RAZORPAY_KEY_ID) {
-    console.error('RAZORPAY_KEY_ID is not defined in environment variables');
-    return res.status(500).json({ success: false, error: 'Razorpay key not configured' });
+// ---------- Registration Endpoint ----------
+
+
+// Reset Password
+app.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, error: 'Missing fields' });
+    }
+    const record = otps[email];
+    if (!record) return res.json({ success: false, error: 'OTP not found' });
+    if (Date.now() > record.expires) {
+      delete otps[email];
+      return res.json({ success: false, error: 'OTP expired' });
+    }
+    if (otp !== record.otp || !record.verified) {
+      return res.json({ success: false, error: 'OTP not verified' });
+    }
+
+    let user;
+    try {
+      user = await admin.auth().getUserByEmail(email);
+    } catch {
+      return res.json({ success: false, error: 'User not found' });
+    }
+
+    await admin.auth().updateUser(user.uid, { password: newPassword });
+    delete otps[email];
+    log('[RESET] Password updated', email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[RESET] Error:', err);
+    res.status(500).json({ success: false, error: 'Reset failed' });
   }
-  
-  console.log('Returning Razorpay key ID:', process.env.RAZORPAY_KEY_ID);
-  res.json({ success: true, key: process.env.RAZORPAY_KEY_ID });
 });
 
-// Mark transaction as completed after payment
-app.post('/mark-transaction-completed', async (req, res) => {
+// Create Razorpay Order
+app.post('/create-order', async (req, res) => {
+  try {
+    const { amount, currency = 'INR', receipt } = req.body;
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid amount' });
+    }
+    if (!receipt) {
+      return res.status(400).json({ success: false, error: 'Receipt required' });
+    }
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ success: false, error: 'Razorpay not configured' });
+    }
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100),
+      currency,
+      receipt,
+      payment_capture: 1,
+    });
+    res.json({ success: true, order });
+  } catch (err) {
+    console.error('[ORDER] Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Mark Transaction Completed (stub)
+app.post('/mark-transaction-completed', (req, res) => {
   const { transactionId } = req.body;
-  // Temporarily comment out Firebase operations
-  // try {
-  //   await admin.firestore().collection('transactions').doc(transactionId).update({
-  //     status: 'completed'
-  //   });
-  //   res.json({ success: true });
-  // } catch (err) {
-  //   res.json({ success: false, error: err.message });
-  // }
-  
-  // For now, just return success
-  console.log('Transaction marked as completed (mock):', transactionId);
-  res.json({ success: true, message: 'Transaction marked as completed (mock)' });
+  log('[TXN][COMPLETE]', transactionId);
+  res.json({ success: true });
 });
 
-// Mark crop as sold
+// Mark Crop Sold
 app.post('/mark-crop-sold', async (req, res) => {
-  const { cropId } = req.body;
-  console.log('[mark-crop-sold] cropId:', cropId);
-  // Temporarily comment out Firebase operations
-  // try {
-  //   const result = await admin.firestore().collection('crops').doc(cropId).update({
-  //     status: 'sold'
-  //   });
-  //   console.log('[mark-crop-sold] update result:', result);
-  //   res.json({ success: true });
-  // } catch (err) {
-  //   console.error('[mark-crop-sold] error:', err);
-  //   res.json({ success: false, error: err.message });
-  // }
-  
-  // For now, just return success
-  console.log('Crop marked as sold (mock):', cropId);
-  res.json({ success: true, message: 'Crop marked as sold (mock)' });
-});
-
-// Update farmer location for delivery tracking
-app.post('/update-location', async (req, res) => {
-  const { transactionId, latitude, longitude } = req.body;
-  console.log('[update-location] transactionId:', transactionId, 'location:', latitude, longitude);
   try {
-    await admin.firestore().collection('delivery_tracking').doc(transactionId).update({
-      location_latitude: latitude,
-      location_longitude: longitude,
-      last_updated: new Date().toISOString()
-    });
+    const { cropId } = req.body;
+    if (!cropId) return res.status(400).json({ success: false, error: 'cropId required' });
+    await admin.firestore().collection('crops').doc(cropId).update({ status: 'sold' });
     res.json({ success: true });
   } catch (err) {
-    console.error('[update-location] error:', err);
-    res.json({ success: false, error: err.message });
+    console.error('[CROP][SOLD] Error:', err);
+    res.status(500).json({ success: false, error: 'Update failed' });
   }
 });
 
-// Mark delivery as completed by farmer
-app.post('/mark-delivery-completed', async (req, res) => {
-  const { transactionId } = req.body;
-  console.log('[mark-delivery-completed] transactionId:', transactionId);
-  try {
-    await admin.firestore().collection('delivery_tracking').doc(transactionId).update({
-      status: 'delivered',
-      delivered_at: new Date().toISOString()
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[mark-delivery-completed] error:', err);
-    res.json({ success: false, error: err.message });
-  }
+// ---------- Error Fallback ----------
+app.use((err, _req, res, _next) => {
+  console.error('[UNHANDLED]', err);
+  res.status(500).json({ success: false, error: 'Server error' });
 });
 
-// Acknowledge delivery receipt by retailer
-app.post('/acknowledge-delivery', async (req, res) => {
-  const { transactionId } = req.body;
-  console.log('[acknowledge-delivery] transactionId:', transactionId);
-  try {
-    await admin.firestore().collection('delivery_tracking').doc(transactionId).update({
-      status: 'acknowledged',
-      acknowledged_at: new Date().toISOString()
-    });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[acknowledge-delivery] error:', err);
-    res.json({ success: false, error: err.message });
-  }
-});
-
+// ---------- Start ----------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`[SERVER] Running on port ${PORT}`);
 });

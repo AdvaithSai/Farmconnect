@@ -37,7 +37,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { user } = useAppStore();
   
-  const [offer] = useState<Offer | null>(null);
+  const [offer, setOffer] = useState<Offer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(paymentMethods[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -47,11 +47,23 @@ const Checkout = () => {
     const fetchOffer = async () => {
       if (!offerId) return;
       setIsLoading(true);
-      // TODO: Fetch offer from Firebase Firestore and update state
-      setIsLoading(false);
+      try {
+        // Example: Fetch offer from Firestore (replace with your actual logic)
+        const res = await fetch(`http://localhost:3000/get-offer/${offerId}`);
+        const data = await res.json();
+        if (data.success && data.offer) {
+          setOffer(data.offer);
+        } else {
+          setOffer(null);
+        }
+      } catch (error) {
+        setOffer(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchOffer();
-  }, [offerId, user, navigate]);
+  }, [offerId]);
   
   const handleCheckout = async () => {
     if (!offer) return;
@@ -86,45 +98,80 @@ const Checkout = () => {
         order_id: data.order.id,
         handler: async function (response: RazorpayResponse) {
           try {
-            // Mark transaction as completed
+            console.log('Razorpay payment handler called. User:', useAppStore.getState().user);
+            // Mark transaction as completed (backend)
             const txnRes = await fetch('http://localhost:3000/mark-transaction-completed', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ transactionId: offer.id }),
             });
-            
             if (!txnRes.ok) {
-              throw new Error('Failed to mark transaction as completed');
+              console.error('mark-transaction-completed failed:', txnRes.status, await txnRes.text());
+              toast.error('Failed to mark transaction as completed.');
             }
-            
-            // Mark crop as sold
-            const cropRes = await fetch('http://localhost:3000/mark-crop-sold', {
+            console.log('User state after mark-transaction-completed:', useAppStore.getState().user);
+
+            // Mark crop as sold (backend)
+            // Use your deployed Firebase Function URL here
+            const cropRes = await fetch('https://us-central1-farmer-d3cc7.cloudfunctions.net/markCropSold', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ cropId: offer.crop_id }),
             });
-            
             if (!cropRes.ok) {
-              throw new Error('Failed to mark crop as sold');
+              console.error('mark-crop-sold failed:', cropRes.status, await cropRes.text());
+              toast.error('Failed to mark crop as sold.');
             }
-            
+            const cropResult = await cropRes.json().catch(() => ({}));
+            console.log('Crop mark as sold result:', cropResult);
+            console.log('User state after mark-crop-sold:', useAppStore.getState().user);
+            if (!cropResult.success) {
+              toast.error('Failed to mark crop as sold.');
+            }
+
             toast.success('Payment successful! Payment ID: ' + response.razorpay_payment_id);
-            
+
             // Refresh all data globally
             await useAppStore.getState().refreshAllData();
-            
+            console.log('User state after refreshAllData:', useAppStore.getState().user);
+
+            // Refetch offer to update UI
+            const res = await fetch(`http://localhost:3000/get-offer/${offer.id}`);
+            if (!res.ok) {
+              console.error('get-offer failed:', res.status, await res.text());
+              toast.error('Failed to refetch offer.');
+            }
+            const data = await res.json().catch(() => ({}));
+            if (data.success && data.offer) {
+              setOffer(data.offer);
+              console.log('Offer after payment:', data.offer);
+            } else {
+              console.error('Offer not found or error in response:', data);
+            }
+
             // Show success screen
             setIsSuccess(true);
-            
+
+            // Debug: log user state after payment
+            setTimeout(() => {
+              console.log('User state after payment (timeout):', useAppStore.getState().user);
+            }, 1000);
           } catch (error) {
             console.error('Error updating transaction/crop status:', error);
             toast.error('Payment succeeded but failed to update transaction/crop status. Please contact support.');
+            console.log('User state after error:', useAppStore.getState().user);
           }
         },
         prefill: {
           email: user?.email,
         },
         theme: { color: '#3399cc' },
+        redirect: false,
+        modal: {
+          ondismiss: function() {
+            setIsProcessing(false);
+          }
+        }
       };
       const rzp = new window.Razorpay(options);
       rzp.open();
