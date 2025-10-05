@@ -12,6 +12,7 @@ import { FaFacebook } from 'react-icons/fa';
 import ThemeLoader from '../../components/ThemeLoader';
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || '';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -30,7 +31,6 @@ const Register = () => {
   const loginWithFacebook = useAppStore(state => state.loginWithFacebook);
   const navigate = useNavigate();
 
-  // Password validation function
   const validatePassword = (pwd: string) => {
     if (pwd.length < 6) return 'Password must be at least 6 characters.';
     if (!/[A-Z]/.test(pwd)) return 'Password must contain at least one capital letter.';
@@ -65,6 +65,27 @@ const Register = () => {
     !retypePassword ||
     password !== retypePassword;
 
+  const triggerGreetingEmail = async () => {
+    if (!API_BASE_URL) {
+      console.warn('[GREETING] VITE_API_BASE_URL not set; skipping greeting email trigger.');
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || response.statusText);
+      }
+      console.log(`[GREETING] Triggered for ${email}`);
+    } catch (error) {
+      console.error('[GREETING][ERROR] Failed to trigger greeting email:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recaptchaToken) {
@@ -75,15 +96,15 @@ const Register = () => {
     try {
       const { error } = await register(email, password, name, role);
       if (error) {
-        const errorMsg = typeof error === 'object' && error !== null && 'message' in error && typeof (error as unknown as { message?: string }).message === 'string'
-          ? (error as unknown as { message: string }).message
-          : JSON.stringify(error) || 'Failed to register';
+        const errorMsg =
+          typeof error === 'object' && error !== null && 'message' in error &&
+          typeof (error as { message?: string }).message === 'string'
+            ? (error as { message: string }).message
+            : JSON.stringify(error) || 'Failed to register';
         toast.error(errorMsg);
       } else {
-        // Redirect based on role
-        const dashboardPath = role === 'farmer' 
-          ? '/farmer/dashboard' 
-          : '/retailer/dashboard';
+        await triggerGreetingEmail();
+        const dashboardPath = role === 'farmer' ? '/farmer/dashboard' : '/retailer/dashboard';
         toast.success('Registration successful!');
         navigate(dashboardPath);
       }
@@ -103,6 +124,9 @@ const Register = () => {
       toast.error('Google sign-in failed.');
     } else {
       toast.success('Signed in with Google!');
+      if (API_BASE_URL && useAppStore.getState().user?.email) {
+        triggerGreetingEmail().catch(() => {});
+      }
       navigate('/retailer/dashboard');
     }
   };
@@ -115,28 +139,18 @@ const Register = () => {
       toast.error('Facebook sign-in failed.');
     } else {
       toast.success('Signed in with Facebook!');
+      if (API_BASE_URL && useAppStore.getState().user?.email) {
+        triggerGreetingEmail().catch(() => {});
+      }
       navigate('/retailer/dashboard');
     }
   };
 
-  // Password requirements for checklist
   const passwordChecks = [
-    {
-      label: 'At least 6 characters',
-      valid: password.length >= 6,
-    },
-    {
-      label: 'At least one capital letter',
-      valid: /[A-Z]/.test(password),
-    },
-    {
-      label: 'At least one number',
-      valid: /[0-9]/.test(password),
-    },
-    {
-      label: 'At least one special character',
-      valid: /[^A-Za-z0-9]/.test(password),
-    },
+    { label: 'At least 6 characters', valid: password.length >= 6 },
+    { label: 'At least one capital letter', valid: /[A-Z]/.test(password) },
+    { label: 'At least one number', valid: /[0-9]/.test(password) },
+    { label: 'At least one special character', valid: /[^A-Za-z0-9]/.test(password) },
   ];
 
   return (
