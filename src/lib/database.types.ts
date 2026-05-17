@@ -160,25 +160,37 @@ export interface Database {
           id: string
           created_at: string
           offer_id: string
+          crop_id: string
+          farmer_id: string
+          retailer_id: string
           payment_id: string | null
           amount: number
-          status: 'pending' | 'completed' | 'failed'
+          status: 'pending_payment' | 'completed' | 'failed'
+          completed_at: string | null
         }
         Insert: {
           id?: string
           created_at?: string
           offer_id: string
+          crop_id: string
+          farmer_id: string
+          retailer_id: string
           payment_id?: string | null
           amount: number
-          status?: 'pending' | 'completed' | 'failed'
+          status?: 'pending_payment' | 'completed' | 'failed'
+          completed_at?: string | null
         }
         Update: {
           id?: string
           created_at?: string
           offer_id?: string
+          crop_id?: string
+          farmer_id?: string
+          retailer_id?: string
           payment_id?: string | null
           amount?: number
-          status?: 'pending' | 'completed' | 'failed'
+          status?: 'pending_payment' | 'completed' | 'failed'
+          completed_at?: string | null
         }
       }
       chats: {

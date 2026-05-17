@@ -9,9 +9,15 @@ import { db } from '../../lib/firebase';
 
 const RetailerChats = () => {
   const [searchParams] = useSearchParams();
-  const { user, setCurrentChat, createOrGetChat } = useAppStore();
+  const { user, setCurrentChat, createOrGetChat, fetchUserOffers } = useAppStore();
   const [selectedChat, setSelectedChat] = useState<{ id: string; crop_id: string; farmer_id: string; retailer_id: string } | null>(null);
   const [chatDetails, setChatDetails] = useState<{ cropName: string; otherUserName: string } | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserOffers();
+    }
+  }, [user, fetchUserOffers]);
 
   useEffect(() => {
     if (selectedChat) {
@@ -19,18 +25,14 @@ const RetailerChats = () => {
     }
   }, [selectedChat]);
 
-  // Handle URL parameters for direct chat access (NEW)
+  // Handle URL parameters for direct chat access
   useEffect(() => {
     const farmerId = searchParams.get('farmer');
     const cropId = searchParams.get('crop');
-    if (!farmerId || !cropId || !user) {
-      console.warn('Missing farmerId, cropId, or user for chat initialization', { farmerId, cropId, user });
-      return;
-    }
+    if (!farmerId || !cropId || !user) return;
     const initializeChat = async () => {
       const { error, chat } = await createOrGetChat(cropId, user.id, farmerId);
       if (!error && chat) {
-        console.log('Selected/created chat:', chat, 'id:', chat.id);
         setSelectedChat(chat);
         setCurrentChat(chat);
       }

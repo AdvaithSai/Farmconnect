@@ -89,13 +89,16 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div>
-      <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold text-green-700">Forgot Password</h2>
-        <p className="text-gray-600 mt-2">{step === 'email' && 'Enter your registered email to receive an OTP.'}
-        {step === 'otp' && 'Enter the OTP sent to your email.'}
-        {step === 'reset' && 'Enter your new password.'}</p>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-green-700">Forgot Password</h2>
+          <p className="text-gray-500 mt-2 text-sm">
+            {step === 'email' && 'Enter your registered email to receive an OTP.'}
+            {step === 'otp' && 'Enter the OTP sent to your email.'}
+            {step === 'reset' && 'Enter your new password.'}
+          </p>
+        </div>
       {step === 'email' && (
         <form className="space-y-4" onSubmit={handleEmailSubmit}>
           <input
@@ -165,6 +168,7 @@ const ForgotPassword = () => {
           </button>
         </form>
       )}
+      </div>
     </div>
   );
 };

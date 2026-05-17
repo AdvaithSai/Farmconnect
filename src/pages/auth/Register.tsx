@@ -1,17 +1,11 @@
-// TODO: Ensure you have a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY set to your Supabase project credentials.
-// Also, check Supabase Auth settings for email confirmation requirements.
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../../lib/store';
-// @ts-expect-error: No type definitions for react-google-recaptcha
-import ReCAPTCHA from 'react-google-recaptcha';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
+import { Eye, EyeOff, Sprout, Check, X } from 'lucide-react';
 import ThemeLoader from '../../components/ThemeLoader';
-
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -19,23 +13,23 @@ const Register = () => {
   const [name, setName] = useState('');
   const [role, setRole] = useState<'farmer' | 'retailer'>('farmer');
   const [isLoading, setIsLoading] = useState(false);
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [retypePassword, setRetypePassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [retypeError, setRetypeError] = useState('');
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRetype, setShowRetype] = useState(false);
 
   const register = useAppStore(state => state.register);
   const loginWithGoogle = useAppStore(state => state.loginWithGoogle);
   const loginWithFacebook = useAppStore(state => state.loginWithFacebook);
   const navigate = useNavigate();
 
-  // Password validation function
   const validatePassword = (pwd: string) => {
-    if (pwd.length < 6) return 'Password must be at least 6 characters.';
-    if (!/[A-Z]/.test(pwd)) return 'Password must contain at least one capital letter.';
-    if (!/[0-9]/.test(pwd)) return 'Password must contain at least one number.';
-    if (!/[^A-Za-z0-9]/.test(pwd)) return 'Password must contain at least one special character.';
+    if (pwd.length < 6) return 'At least 6 characters required.';
+    if (!/[A-Z]/.test(pwd)) return 'Must contain a capital letter.';
+    if (!/[0-9]/.test(pwd)) return 'Must contain a number.';
+    if (!/[^A-Za-z0-9]/.test(pwd)) return 'Must contain a special character.';
     return '';
   };
 
@@ -51,45 +45,36 @@ const Register = () => {
 
   const handleRetypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setRetypePassword(e.target.value);
-    if (password !== e.target.value) {
-      setRetypeError('Passwords do not match.');
-    } else {
-      setRetypeError('');
-    }
+    setRetypeError(password !== e.target.value ? 'Passwords do not match.' : '');
   };
 
+  const passwordChecks = [
+    { label: 'At least 6 characters', valid: password.length >= 6 },
+    { label: 'One capital letter', valid: /[A-Z]/.test(password) },
+    { label: 'One number', valid: /[0-9]/.test(password) },
+    { label: 'One special character', valid: /[^A-Za-z0-9]/.test(password) },
+  ];
+
   const isFormInvalid =
-    !!passwordError ||
-    !!retypeError ||
-    !password ||
-    !retypePassword ||
-    password !== retypePassword;
+    !!passwordError || !!retypeError || !password || !retypePassword || password !== retypePassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recaptchaToken) {
-      toast.error('Please verify that you are not a robot.');
-      return;
-    }
     setIsLoading(true);
     try {
       const { error } = await register(email, password, name, role);
       if (error) {
-        const errorMsg = typeof error === 'object' && error !== null && 'message' in error && typeof (error as unknown as { message?: string }).message === 'string'
-          ? (error as unknown as { message: string }).message
-          : JSON.stringify(error) || 'Failed to register';
+        const errorMsg = typeof error === 'object' && error !== null && 'message' in error &&
+          typeof (error as { message?: string }).message === 'string'
+          ? (error as { message: string }).message
+          : 'Failed to register';
         toast.error(errorMsg);
       } else {
-        // Redirect based on role
-        const dashboardPath = role === 'farmer' 
-          ? '/farmer/dashboard' 
-          : '/retailer/dashboard';
-        toast.success('Registration successful!');
-        navigate(dashboardPath);
+        toast.success('Account created successfully!');
+        navigate(role === 'farmer' ? '/farmer/dashboard' : '/retailer/dashboard');
       }
-    } catch (error) {
+    } catch {
       toast.error('An unexpected error occurred');
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -99,203 +84,249 @@ const Register = () => {
     setIsLoading(true);
     const { error } = await loginWithGoogle();
     setIsLoading(false);
-    if (error) {
-      toast.error('Google sign-in failed.');
-    } else {
-      toast.success('Signed in with Google!');
-      navigate('/retailer/dashboard');
-    }
+    if (error) { toast.error('Google sign-in failed.'); }
+    else { toast.success('Signed in with Google!'); navigate('/retailer/dashboard'); }
   };
 
   const handleFacebookRegister = async () => {
     setIsLoading(true);
     const { error } = await loginWithFacebook();
     setIsLoading(false);
-    if (error) {
-      toast.error('Facebook sign-in failed.');
-    } else {
-      toast.success('Signed in with Facebook!');
-      navigate('/retailer/dashboard');
-    }
+    if (error) { toast.error('Facebook sign-in failed.'); }
+    else { toast.success('Signed in with Facebook!'); navigate('/retailer/dashboard'); }
   };
 
-  // Password requirements for checklist
-  const passwordChecks = [
-    {
-      label: 'At least 6 characters',
-      valid: password.length >= 6,
-    },
-    {
-      label: 'At least one capital letter',
-      valid: /[A-Z]/.test(password),
-    },
-    {
-      label: 'At least one number',
-      valid: /[0-9]/.test(password),
-    },
-    {
-      label: 'At least one special character',
-      valid: /[^A-Za-z0-9]/.test(password),
-    },
-  ];
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 relative">
+    <div className="min-h-screen flex" style={{ fontFamily: "'Inter', sans-serif" }}>
       {isLoading && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <ThemeLoader />
         </div>
       )}
-      <div className={`max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-md transition-all duration-300 ${isLoading ? 'blur-sm pointer-events-none select-none opacity-60' : ''}`}>
-        <h2 className="mt-2 text-center text-3xl font-extrabold text-green-700">Create your account</h2>
-        <div className="flex flex-col gap-3 w-full mb-1">
-          <button
-            type="button"
-            className="flex items-center justify-center w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 transition-colors font-medium"
-            onClick={handleGoogleRegister}
-            disabled={isLoading}
-          >
-            <FcGoogle className="mr-2 text-xl" /> Continue with Google
-          </button>
-          <button
-            type="button"
-            className="flex items-center justify-center w-full py-2 px-4 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 transition-colors font-medium"
-            onClick={handleFacebookRegister}
-            disabled={isLoading}
-          >
-            <FaFacebook className="mr-2 text-xl text-blue-600" /> Continue with Facebook
-          </button>
-        </div>
-        <div className="flex items-center w-full my-3">
-          <div className="flex-grow border-t border-gray-300"></div>
-          <span className="mx-3 text-gray-500 font-medium">or</span>
-          <div className="flex-grow border-t border-gray-300"></div>
-        </div>
-        <form className="space-y-4 w-full" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="name" className="sr-only">Full Name</label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                placeholder="Full Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={isLoading}
-              />
+
+      {/* ── Left brand panel ── */}
+      <div
+        className="hidden lg:flex lg:w-2/5 flex-col justify-between p-12 relative overflow-hidden"
+        style={{ background: 'linear-gradient(145deg, #14532d 0%, #166534 40%, #15803d 100%)' }}
+      >
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #bbf7d0, transparent)' }} />
+        <div className="absolute -bottom-32 -right-20 w-80 h-80 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #fef08a, transparent)' }} />
+
+        {/* Logo */}
+        <div className="relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur">
+              <Sprout size={22} className="text-green-200" />
             </div>
-            <div>
-              <label htmlFor="email-address" className="sr-only">Email address</label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={handlePasswordChange}
-                disabled={isLoading}
-                onFocus={() => setPasswordFocused(true)}
-                onBlur={() => setPasswordFocused(false)}
-              />
-              {passwordFocused && (
-                <>
-                  {passwordError && <p className="text-xs text-red-600 mt-1">{passwordError}</p>}
-                  <ul className="text-xs mt-2 space-y-1">
-                    {passwordChecks.map((check, idx) => (
-                      <li key={idx} className={check.valid ? 'text-green-600 flex items-center' : 'text-gray-500 flex items-center'}>
-                        <span className="inline-block w-4">{check.valid ? '✓' : '•'}</span> {check.label}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-            <div>
-              <label htmlFor="retype-password" className="sr-only">Retype Password</label>
-              <input
-                id="retype-password"
-                name="retype-password"
-                type="password"
-                autoComplete="new-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                placeholder="Retype Password"
-                value={retypePassword}
-                onChange={handleRetypeChange}
-                disabled={isLoading}
-              />
-              {retypeError && <p className="text-xs text-red-600 mt-1">{retypeError}</p>}
-            </div>
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-green-700 mb-1">Select your role</label>
-              <div className="relative">
-                <select
-                  id="role"
-                  name="role"
-                  required
-                  className="block w-full px-4 py-2 pr-10 border border-green-400 text-green-900 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-600 focus:bg-green-50 transition-colors sm:text-sm appearance-none"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as 'farmer' | 'retailer')}
-                  disabled={isLoading}
-                >
-                  <option value="farmer">🚜 I am a Farmer</option>
-                  <option value="retailer">🛍️ I am a Retailer</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                  <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+            <span className="text-white text-2xl font-bold tracking-tight">FarmConnect</span>
           </div>
-          <div className="my-2 flex justify-center">
-            <ReCAPTCHA
-              sitekey={RECAPTCHA_SITE_KEY}
-              onChange={(token: string | null) => setRecaptchaToken(token)}
-              onExpired={() => setRecaptchaToken(null)}
-            />
-          </div>
+          <p className="text-green-200 text-sm mt-2">India's agri marketplace</p>
+        </div>
+
+        {/* Role selector hint */}
+        <div className="relative z-10 space-y-6">
           <div>
-            <button
-              type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-400 disabled:cursor-not-allowed"
-              disabled={isLoading || isFormInvalid}
-            >
-              {isLoading ? <span className="opacity-0">Register</span> : 'Register'}
-            </button>
-          </div>
-          <div className="text-sm text-center">
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <Link to="/login" className="font-medium text-green-600 hover:text-green-500">
-                Sign in
-              </Link>
+            <h2 className="text-white text-3xl font-bold leading-tight mb-3">
+              Join as a<br />
+              <span className="text-yellow-300">Farmer or Retailer</span>
+            </h2>
+            <p className="text-green-200 text-sm leading-relaxed">
+              Create your free account and start trading directly. No middlemen, transparent pricing.
             </p>
           </div>
-        </form>
+
+          {/* Role cards */}
+          <div className="space-y-3">
+            <div className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">🚜</span>
+                <span className="text-white font-semibold">Farmer</span>
+              </div>
+              <ul className="text-green-200 text-xs space-y-1">
+                <li>• List your crops with photos & pricing</li>
+                <li>• Receive & accept offers from retailers</li>
+                <li>• Get paid securely after delivery</li>
+              </ul>
+            </div>
+            <div className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">🛍️</span>
+                <span className="text-white font-semibold">Retailer</span>
+              </div>
+              <ul className="text-green-200 text-xs space-y-1">
+                <li>• Browse fresh crops from local farmers</li>
+                <li>• Negotiate prices through live chat</li>
+                <li>• Track deliveries in real-time</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <p className="relative z-10 text-green-300 text-xs">
+          By signing up you agree to our Terms & Privacy Policy
+        </p>
+      </div>
+
+      {/* ── Right form panel ── */}
+      <div className="flex-1 flex items-start lg:items-center justify-center bg-gray-50 p-6 lg:p-10 overflow-y-auto">
+        <div className="w-full max-w-md py-4">
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2 mb-6 lg:hidden">
+            <div className="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center">
+              <Sprout size={16} className="text-white" />
+            </div>
+            <span className="text-green-800 text-xl font-bold">FarmConnect</span>
+          </div>
+
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">Create account</h1>
+            <p className="text-gray-500 text-sm">Join thousands of farmers & retailers</p>
+          </div>
+
+          {/* Social buttons */}
+          <div className="space-y-3 mb-5">
+            <button
+              type="button"
+              onClick={handleGoogleRegister}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium text-sm hover:border-green-400 hover:bg-green-50 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
+            >
+              <FcGoogle size={20} /> Continue with Google
+            </button>
+            <button
+              type="button"
+              onClick={handleFacebookRegister}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium text-sm hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
+            >
+              <FaFacebook size={20} className="text-blue-600" /> Continue with Facebook
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="relative mb-5">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-3 bg-gray-50 text-gray-400 font-medium uppercase tracking-widest">or register with email</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name */}
+            <div className="space-y-1">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
+              <input
+                id="name" name="name" type="text" autoComplete="name" required
+                value={name} onChange={e => setName(e.target.value)} disabled={isLoading}
+                placeholder="Pranav Sharma"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all duration-200"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-1">
+              <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">Email address</label>
+              <input
+                id="email-address" name="email" type="email" autoComplete="email" required
+                value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading}
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all duration-200"
+              />
+            </div>
+
+            {/* Password */}
+            <div className="space-y-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <div className="relative">
+                <input
+                  id="password" name="password" type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password" required
+                  value={password} onChange={handlePasswordChange} disabled={isLoading}
+                  onFocus={() => setPasswordFocused(true)} onBlur={() => setPasswordFocused(false)}
+                  placeholder="Create a strong password"
+                  className={`w-full px-4 py-3 pr-12 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 transition-all duration-200 ${
+                    passwordError && password ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-green-500'
+                  }`}
+                />
+                <button type="button" onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              {/* Password checklist */}
+              {(passwordFocused || password) && (
+                <div className="bg-gray-100 rounded-xl p-3 mt-1 grid grid-cols-2 gap-1">
+                  {passwordChecks.map((c, i) => (
+                    <div key={i} className={`flex items-center gap-1.5 text-xs ${c.valid ? 'text-green-600' : 'text-gray-400'}`}>
+                      {c.valid
+                        ? <Check size={12} className="shrink-0" />
+                        : <X size={12} className="shrink-0" />}
+                      {c.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Retype Password */}
+            <div className="space-y-1">
+              <label htmlFor="retype-password" className="block text-sm font-medium text-gray-700">Confirm Password</label>
+              <div className="relative">
+                <input
+                  id="retype-password" name="retype-password" type={showRetype ? 'text' : 'password'}
+                  autoComplete="new-password" required
+                  value={retypePassword} onChange={handleRetypeChange} disabled={isLoading}
+                  placeholder="Repeat your password"
+                  className={`w-full px-4 py-3 pr-12 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 transition-all duration-200 ${
+                    retypeError ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-green-500'
+                  }`}
+                />
+                <button type="button" onClick={() => setShowRetype(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                  {showRetype ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {retypeError && <p className="text-xs text-red-500 mt-1">{retypeError}</p>}
+            </div>
+
+            {/* Role selector */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">I am joining as</label>
+              <div className="grid grid-cols-2 gap-3">
+                {(['farmer', 'retailer'] as const).map(r => (
+                  <button
+                    key={r} type="button"
+                    onClick={() => setRole(r)}
+                    className={`py-3 px-4 rounded-xl border-2 font-medium text-sm transition-all duration-200 ${
+                      role === r
+                        ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-green-300 hover:bg-green-50/50'
+                    }`}
+                  >
+                    <span className="mr-1.5">{r === 'farmer' ? '🚜' : '🛍️'}</span>
+                    {r.charAt(0).toUpperCase() + r.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || isFormInvalid || !name || !email}
+              className="w-full py-3 px-4 rounded-xl bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg disabled:bg-green-300 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Creating account…' : 'Create account'}
+            </button>
+          </form>
+
+          <p className="mt-5 text-center text-sm text-gray-500">
+            Already have an account?{' '}
+            <Link to="/login" className="font-semibold text-green-600 hover:text-green-700">Sign in</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

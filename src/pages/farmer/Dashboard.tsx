@@ -6,7 +6,6 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { toast } from 'react-hot-toast';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-// TODO: Implement crops and offers fetching with Firebase Firestore.
 
 type Crop = {
   id: string;
@@ -315,11 +314,7 @@ const FarmerDashboard = () => {
 
   // Handler for opening chat with retailer
   const handleOpenChat = (offer: { retailer_id: string; crop_id: string }) => {
-    console.log('Navigating to chat with:', { retailerId: offer.retailer_id, cropId: offer.crop_id });
-    if (!offer.retailer_id || !offer.crop_id) {
-      console.warn('Cannot navigate to chat: missing retailer_id or crop_id', offer);
-      return;
-    }
+    if (!offer.retailer_id || !offer.crop_id) return;
     // Navigate to chats page with the specific retailer
     navigate(`/farmer/chats?retailer=${offer.retailer_id}&crop=${offer.crop_id}`);
   };
@@ -385,13 +380,6 @@ const FarmerDashboard = () => {
           >
             <Plus size={20} className="mr-2" />
             Add New Crop
-          </Link>
-          <Link
-            to="/profile"
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors flex items-center"
-          >
-            <User size={20} className="mr-2" />
-            Profile
           </Link>
         </div>
       </div>

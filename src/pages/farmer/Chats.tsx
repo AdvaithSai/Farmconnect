@@ -24,15 +24,11 @@ const FarmerChats = () => {
   useEffect(() => {
     const retailerId = searchParams.get('retailer');
     const cropId = searchParams.get('crop');
-    if (!retailerId || !cropId || !user) {
-      console.warn('Missing retailerId, cropId, or user for chat initialization', { retailerId, cropId, user });
-      return;
-    }
+    if (!retailerId || !cropId || !user) return;
     // Auto-create or get existing chat
     const initializeChat = async () => {
       const { error, chat } = await createOrGetChat(cropId, retailerId, user.id);
       if (!error && chat) {
-        console.log('Selected/created chat:', chat, 'id:', chat.id);
         setSelectedChat(chat);
         setCurrentChat(chat);
       }

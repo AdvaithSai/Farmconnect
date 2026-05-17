@@ -11,6 +11,16 @@ type Transaction = Database['public']['Tables']['transactions']['Row'];
 type Chat = Database['public']['Tables']['chats']['Row'];
 type Message = Database['public']['Tables']['messages']['Row'];
 
+export interface Review {
+  id?: string;
+  transactionId: string;
+  reviewerId: string;
+  targetUserId: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+}
+
 interface AppState {
   user: User | null;
   loading: boolean;
@@ -37,7 +47,7 @@ interface AppState {
   
   // Farmer actions
   addCrop: (cropData: Partial<Crop>) => Promise<{ error: unknown | null, crop: Crop | null }>;
-  updateCropStatus: () => Promise<{ error: unknown | null }>;
+  updateCropStatus: (cropId?: string, status?: 'available' | 'pending' | 'sold') => Promise<{ error: unknown | null }>;
   
   // Retailer actions
   makeOffer: (offerData: { crop_id: string; price: number; message: string }) => Promise<{ error: unknown | null, offer: Offer | null }>;
@@ -52,6 +62,10 @@ interface AppState {
   respondToOffer: (offerId: string, newStatus: 'accepted' | 'rejected') => Promise<{ error: unknown | null }>;
   processPayment: () => Promise<{ error: unknown | null, transaction: Transaction | null }>;
   refreshAllData: () => Promise<void>;
+  
+  // Review actions
+  submitReview: (review: Omit<Review, 'id' | 'createdAt'>) => Promise<{ error: unknown | null }>;
+  getUserRating: (userId: string) => Promise<{ average: number; count: number; reviews: Review[] }>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -297,15 +311,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   
-  updateCropStatus: async () => {
-    // TODO: Implement Firestore logic for updating crop status
-    throw new Error('updateCropStatus not implemented for Firebase yet.');
+  updateCropStatus: async (cropId?: string, status?: 'available' | 'pending' | 'sold') => {
+    if (!cropId || !status) {
+      return { error: new Error('cropId and status are required') };
+    }
+    try {
+      const cropRef = doc(db, 'crops', cropId);
+      await setDoc(cropRef, { status }, { merge: true });
+      // Refresh crops in state
+      await get().fetchCrops();
+      return { error: null };
+    } catch (error) {
+      console.error('Failed to update crop status:', error);
+      return { error };
+    }
   },
   
   // Retailer actions
   makeOffer: async (offerData) => {
     const user = get().user;
-    console.log('makeOffer called with:', offerData, 'user:', user);
     if (!user || user.role !== 'retailer') {
       return { error: new Error('Unauthorized'), offer: null };
     }
@@ -316,7 +340,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       const existingOfferQuery = query(offersCol, where('crop_id', '==', crop_id), where('retailer_id', '==', user.id));
       const existingOfferSnap = await getDocs(existingOfferQuery);
       if (!existingOfferSnap.empty) {
-        console.log('Offer already exists for crop:', crop_id, 'retailer:', user.id);
         return { error: new Error('You have already made an offer for this crop.'), offer: null };
       }
       const newOffer = {
@@ -327,9 +350,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         status: 'pending' as 'pending' | 'accepted' | 'rejected' | 'completed',
         created_at: new Date().toISOString(),
       };
-      console.log('Creating new offer:', newOffer);
       const docRef = await addDoc(collection(db, 'offers'), newOffer);
-      console.log('Offer created with ID:', docRef.id);
       // --- Chat notification logic ---
       // Get crop details for message
       const cropDoc = await getDoc(doc(db, 'crops', crop_id));
@@ -352,13 +373,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         // Send offer message
         const offerMsg = `Offer for ${cropName} of ${quantity} ${unit} is ₹${price}`;
         await get().sendMessage(chatId, offerMsg, 'offer', docRef.id, price);
-        console.log('Offer message sent to chat:', chatId, offerMsg);
         // Refresh chat list for both users
         await get().fetchUserChats();
       }
       return { error: null, offer: { id: docRef.id, ...newOffer } };
     } catch (error) {
-      console.error('Error in makeOffer:', error);
       return { error, offer: null };
     }
   },
@@ -378,12 +397,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (offerData.retailer_id !== user.id) {
         return { error: new Error('Unauthorized to update this offer'), offer: null };
       }
-      if (offerData.status !== 'pending') {
-        return { error: new Error('Cannot update offer that is not pending'), offer: null };
+      if (offerData.status === 'completed') {
+        return { error: new Error('Cannot update offer that is already completed'), offer: null };
       }
       
-      // Update the offer price
-      await setDoc(offerRef, { price: newPrice }, { merge: true });
+      // Update the offer price and set status back to pending
+      await setDoc(offerRef, { price: newPrice, status: 'pending' }, { merge: true });
       
       // Send price negotiation message to farmer
       try {
@@ -418,7 +437,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         // Don't fail the entire operation if chat message fails
       }
       
-      return { error: null, offer: { ...offerData, id: offerId, price: newPrice } };
+      const updatedOffer = { ...offerData, id: offerId, price: newPrice, status: 'pending' as const };
+      
+      // Update local state so UI reflects immediately
+      set((state) => ({
+        userOffers: state.userOffers.map(o => (o.id === offerId ? updatedOffer : o))
+      }));
+      
+      return { error: null, offer: updatedOffer };
     } catch (error) {
       return { error, offer: null };
     }
@@ -590,6 +616,39 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   
+  submitReview: async (review) => {
+    try {
+      await addDoc(collection(db, 'reviews'), {
+        ...review,
+        createdAt: new Date().toISOString()
+      });
+      return { error: null };
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      return { error };
+    }
+  },
+  
+  getUserRating: async (userId) => {
+    try {
+      const q = query(collection(db, 'reviews'), where('targetUserId', '==', userId));
+      const snap = await getDocs(q);
+      const reviews = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
+      
+      if (reviews.length === 0) {
+        return { average: 0, count: 0, reviews: [] };
+      }
+      
+      const sum = reviews.reduce((acc, rev) => acc + rev.rating, 0);
+      const average = sum / reviews.length;
+      
+      return { average, count: reviews.length, reviews };
+    } catch (error) {
+      console.error('Error fetching user ratings:', error);
+      return { average: 0, count: 0, reviews: [] };
+    }
+  },
+
   // Global refresh functions for payment completion
   refreshAllData: async () => {
     await get().fetchCrops();
@@ -599,8 +658,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   processPayment: async () => {
-    // TODO: Implement Firestore logic for processing payment
-    throw new Error('processPayment not implemented for Firebase yet.');
+    // Payment is handled directly in components via Razorpay.
+    // This store action exists for legacy compatibility.
+    return { error: new Error('Use the Razorpay handler in the UI component to process payments.'), transaction: null };
   }
 }));
 

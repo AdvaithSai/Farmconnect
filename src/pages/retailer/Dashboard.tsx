@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Filter, ShoppingBag, MessageCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useAppStore } from '../../lib/store';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -115,66 +116,95 @@ const RetailerDashboard = () => {
   
   // Razorpay payment handler
   const handlePayNow = async (offer: { id: string; price: number; crop_id: string }) => {
-    // Find the pending transaction for this offer
-    // const pendingTxn = transactions.find(t => t.offer_id === offer.id && t.status === 'pending_payment');
-    // Remove test code that marks transaction as completed and crop as sold
-    // Fetch Razorpay Key ID from backend
-    const keyId = 'rzp_test_wrGIN9cKqc1B1a'; // <-- Replace with your actual Razorpay key
-    // Calculate total price
-    const quantity = cropQuantities[offer.crop_id] || 1;
-    const totalPrice = offer.price * quantity;
-    const res = await fetch('http://localhost:3000/create-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount: totalPrice,
-        receipt: offer.id,
-      }),
-    });
-    const data = await res.json();
-    if (!data.success) {
-      alert('Failed to create order');
-      return;
-    }
-    const options = {
-      key: keyId,
-      amount: data.order.amount,
-      currency: data.order.currency,
-      name: 'FarmConnect',
-      description: 'Crop Payment',
-      order_id: data.order.id,
-      handler: async function (response: RazorpayResponse) {
-        alert('Payment successful! Payment ID: ' + response.razorpay_payment_id);
-        // Mark transaction as completed
-        try {
-          // Find the transaction for this offer
-          const pendingTxn = transactions.find(t => t.offer_id === offer.id && t.status === 'pending_payment');
-          if (pendingTxn) {
-            await fetch('http://localhost:3000/mark-transaction-completed', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transactionId: pendingTxn.id }),
-            });
-            await fetch('http://localhost:3000/mark-crop-sold', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cropId: pendingTxn.crop_id }),
-            });
-            // Reload the page to update UI for both dashboards
-            window.location.reload();
+    try {
+      // Fetch Razorpay Key ID dynamically from backend (never hardcode keys)
+      const keyRes = await fetch('http://localhost:3000/razorpay-key');
+      if (!keyRes.ok) {
+        toast.error('Failed to connect to payment server. Please ensure the backend is running.');
+        return;
+      }
+      const keyData = await keyRes.json();
+      if (!keyData.success || !keyData.key) {
+        toast.error(`Payment configuration error: ${keyData.error || 'Invalid key response'}`);
+        return;
+      }
+      const keyId = keyData.key;
+
+      // Calculate total price
+      const quantity = cropQuantities[offer.crop_id] || 1;
+      const totalPrice = offer.price * quantity;
+
+      const res = await fetch('http://localhost:3000/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: totalPrice,
+          receipt: offer.id,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        toast.error('Failed to create order. Please try again.');
+        return;
+      }
+
+      const options = {
+        key: keyId,
+        amount: data.order.amount,
+        currency: data.order.currency || 'INR',
+        name: 'FarmConnect',
+        description: 'Crop Payment',
+        order_id: data.order.id,
+        handler: async function (response: RazorpayResponse) {
+          toast.success('Payment successful! Payment ID: ' + response.razorpay_payment_id);
+          try {
+            // Find the transaction for this offer
+            const pendingTxn = transactions.find(t => t.offer_id === offer.id && t.status === 'pending_payment');
+            if (pendingTxn) {
+              await fetch('http://localhost:3000/mark-transaction-completed', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transactionId: pendingTxn.id }),
+              });
+              await fetch('http://localhost:3000/mark-crop-sold', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cropId: pendingTxn.crop_id }),
+              });
+              // Refresh all data without a full page reload
+              await useAppStore.getState().refreshAllData();
+              // Re-fetch transactions for this page
+              const q = query(collection(db, 'transactions'), where('retailer_id', '==', user?.id));
+              const snap = await getDocs(q);
+              setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
+            }
+          } catch {
+            toast.error('Payment succeeded but failed to update status. Please refresh the page.');
           }
-        } catch {
-          alert('Payment succeeded but failed to update transaction/crop status. Please refresh.');
-        }
-      },
-      prefill: {
-        email: user?.email,
-      },
-      theme: { color: '#3399cc' },
-    };
-    const rzp = new window.Razorpay(options);
-    rzp.open();
+        },
+        prefill: {
+          email: user?.email,
+        },
+        theme: { color: '#3399cc' },
+      };
+
+      // Ensure Razorpay script is loaded
+      if (typeof window.Razorpay === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        await new Promise<void>((resolve) => { script.onload = () => resolve(); });
+      }
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      toast.error('An unexpected error occurred. Please try again.');
+    }
   };
+
   
   if (!user) {
     return (
@@ -311,7 +341,7 @@ const RetailerDashboard = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-green-600">
-                          ${crop.price_expectation?.toFixed(2) || 'Negotiable'}
+                          ₹{crop.price_expectation?.toFixed(2) || 'Negotiable'}
                         </p>
                         <p className="text-xs text-gray-500">per {crop.unit}</p>
                       </div>
@@ -375,7 +405,7 @@ const RetailerDashboard = () => {
                   <tr key={txn.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/retailer/transaction/${txn.id}`)}>
                     <td className="px-6 py-4 whitespace-nowrap">{cropNames[txn.crop_id] || txn.crop_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{farmerNames[txn.farmer_id] || txn.farmer_id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">${(txn.price * (cropQuantities[txn.crop_id] || 1)).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">₹{((txn.amount || txn.price || 0) * (cropQuantities[txn.crop_id] || 1)).toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{new Date(txn.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
@@ -410,7 +440,7 @@ const RetailerDashboard = () => {
                   <tr key={txn.id}>
                     <td className="px-6 py-4 whitespace-nowrap">{cropNames[txn.crop_id] || txn.crop_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{farmerNames[txn.farmer_id] || txn.farmer_id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">${(txn.amount * (cropQuantities[txn.crop_id] || 1)).toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">₹{((txn.amount || txn.price || 0) * (cropQuantities[txn.crop_id] || 1)).toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
                         className="px-3 py-1 text-sm font-medium rounded-md bg-yellow-500 text-white hover:bg-yellow-600 transition-colors"

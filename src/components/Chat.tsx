@@ -6,10 +6,12 @@ import { doc, setDoc, collection, query, where, orderBy, onSnapshot, updateDoc, 
 import { db } from '../lib/firebase';
 import LocationTracker from './LocationTracker';
 
-// Declare Razorpay types for TypeScript
+// Declare Razorpay types for TypeScript (single, global declaration)
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: Record<string, unknown>) => {
+      open: () => void;
+    };
   }
 }
 
@@ -37,14 +39,6 @@ interface RazorpayResponse {
   razorpay_payment_id: string;
   razorpay_order_id: string;
   razorpay_signature: string;
-}
-
-declare global {
-  interface Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-      open: () => void;
-    };
-  }
 }
 
 const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
@@ -149,9 +143,21 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       }
       // Get userOffers from the store
       const offers = useAppStore.getState().userOffers;
-      const offer = offers.find(o => o.crop_id === cropId && o.retailer_id === retailerId && o.status === 'pending');
+      const offer = offers.find(o => o.crop_id === cropId && o.retailer_id === retailerId && (o.status === 'pending' || o.status === 'rejected' || o.status === 'accepted'));
+      
       if (!offer) {
-        toast.error('No pending offer found for this crop.');
+        // If there is no active/rejected offer, we create a new one!
+        const { error } = await useAppStore.getState().makeOffer({
+          crop_id: cropId,
+          price: priceValue,
+          message: 'Proposed a new price.',
+        });
+        if (error) {
+          toast.error(error instanceof Error ? error.message : 'Failed to create offer');
+        } else {
+          toast.success('Offer made and farmer notified!');
+          setPrice('');
+        }
         setIsPriceLoading(false);
         return;
       }
@@ -210,7 +216,6 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       }
       
       const keyData = await keyRes.json();
-      console.log('Razorpay key response:', keyData);
       
       if (!keyData.success || !keyData.key) {
         console.error('Invalid Razorpay key response:', keyData);
@@ -219,8 +224,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       }
       
       const keyId = keyData.key;
-      
-      console.log('Creating order with price:', offer.price, 'and receipt ID:', offer.id);
+
       const res = await fetch('http://localhost:3000/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -239,7 +243,6 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       }
       
       const data = await res.json();
-      console.log('Order creation response:', data);
       
       // Check if the response contains the expected data structure
       if (!data.success || !data.order) {
@@ -248,14 +251,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
         return;
       }
       
-      // Log the order details for debugging
-      console.log('Order details:', {
-        id: data.order.id,
-        amount: data.order.amount,
-        currency: data.order.currency || 'INR'
-      });
-      
-      // Initialize Razorpay options with the order data
+      // Initialize Razorpay with the order data
       const options = {
         key: keyId,
         amount: data.order.amount,
@@ -326,13 +322,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
         },
         theme: { color: '#3399cc' },
       };
-      // Add TypeScript declaration for Razorpay
-      declare global {
-        interface Window {
-          Razorpay: any;
-        }
-      }
-      
+
       // Make sure Razorpay is loaded before initializing
       const loadRazorpayScript = () => {
         return new Promise<void>((resolve) => {
@@ -341,12 +331,10 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
             return;
           }
           
-          console.log('Loading Razorpay script...');
           const script = document.createElement('script');
           script.src = 'https://checkout.razorpay.com/v1/checkout.js';
           script.async = true;
           script.onload = () => {
-            console.log('Razorpay script loaded successfully');
             resolve();
           };
           script.onerror = () => {
@@ -361,7 +349,6 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       // Load script and initialize Razorpay
       loadRazorpayScript().then(() => {
         try {
-          console.log('Initializing Razorpay with options:', options);
           const rzp = new window.Razorpay(options);
           rzp.open();
         } catch (error) {
@@ -379,18 +366,27 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
   useEffect(() => {
     if (currentChat && user) {
       try {
-        // Query for transactions related to this chat's offer
+        // Find the specific offer for this chat
+        const currentOffer = userOffers.find(
+          o => o.crop_id === currentChat?.crop_id && 
+               o.retailer_id === currentChat?.retailer_id
+        );
+        
+        if (!currentOffer) return;
+        
+        // Query for transactions related ONLY to this chat's offer
         const q = query(
           collection(db, 'transactions'),
-          where('offer_id', 'in', userOffers.map(o => o.id)),
+          where('offer_id', '==', currentOffer.id),
           where('status', '==', 'completed')
         );
         
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
           if (!querySnapshot.empty) {
-            const transaction = querySnapshot.docs[0];
-            setTransactionId(transaction.id);
+            setTransactionId(currentOffer.id);
             setShowLocationTracker(true);
+          } else {
+            setShowLocationTracker(false);
           }
         });
         
@@ -489,6 +485,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       {showLocationTracker && transactionId && (
         <div className="px-4 mb-4">
           <LocationTracker 
+            key={transactionId}
             transactionId={transactionId}
             offerId={transactionId} /* Using transactionId as offerId since they're the same in our implementation */
             farmerId={currentChat?.farmer_id || ''}

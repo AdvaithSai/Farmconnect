@@ -43,9 +43,6 @@ const MainLayout = () => {
                     <Link to="/farmer/offers" className="hover:text-yellow-200 transition-colors">
                       Manage Offers
                     </Link>
-                    <Link to="/profile" className="hover:text-yellow-200 transition-colors">
-                      Profile
-                    </Link>
                   </div>
                 )}
                 
@@ -57,9 +54,6 @@ const MainLayout = () => {
                     </Link>
                     <Link to="/retailer/offers" className="hover:text-yellow-200 transition-colors">
                       My Offers
-                    </Link>
-                    <Link to="/profile" className="hover:text-yellow-200 transition-colors">
-                      Profile
                     </Link>
                   </div>
                 )}
@@ -137,13 +131,6 @@ const MainLayout = () => {
                     >
                       Manage Offers
                     </Link>
-                    <Link 
-                      to="/profile" 
-                      className="hover:text-yellow-200 transition-colors"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Profile
-                    </Link>
                   </>
                 )}
                 
@@ -163,13 +150,6 @@ const MainLayout = () => {
                       onClick={() => setMenuOpen(false)}
                     >
                       My Offers
-                    </Link>
-                    <Link 
-                      to="/profile" 
-                      className="hover:text-yellow-200 transition-colors"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Profile
                     </Link>
                   </>
                 )}
@@ -253,8 +233,8 @@ const MainLayout = () => {
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-yellow-200">Contact</h3>
                 <ul className="space-y-2 text-green-200">
-                  <li>support@farmconnect.com</li>
-                  <li>+1 (555) 123-4567</li>
+                  <li>22b81a6703.genai24@gmail.com</li>
+                  <li>+91 9490666957</li>
                 </ul>
               </div>
             </div>

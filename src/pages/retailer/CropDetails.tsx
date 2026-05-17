@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, User, MapPin, Calendar, Info, DollarSign, MessageCircle } from 'lucide-react';
-import { useAppStore } from '../../lib/store';
+import { useAppStore, Review } from '../../lib/store';
 import ThemeLoader from '../../components/ThemeLoader';
-// TODO: Implement crop and offer details fetching with Firebase Firestore.
+import StarRating from '../../components/StarRating';
 
 type CropWithFarmer = {
   id: string;
@@ -43,9 +43,10 @@ type OfferFormData = {
 const CropDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, makeOffer } = useAppStore();
+  const { user, makeOffer, getUserRating } = useAppStore();
   
   const [crop, setCrop] = useState<CropWithFarmer | null>(null);
+  const [farmerRating, setFarmerRating] = useState<{average: number, count: number}>({ average: 0, count: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [existingOffer, setExistingOffer] = useState<OfferRow | null>(null);
   const [showOfferForm, setShowOfferForm] = useState(false);
@@ -84,6 +85,11 @@ const CropDetails = () => {
           id: cropDoc.id,
           farmers: farmer,
         } as CropWithFarmer);
+        
+        if (farmer) {
+          const rating = await getUserRating(farmer.id);
+          setFarmerRating(rating);
+        }
       } catch (error) {
         console.error('Error fetching crop details:', error);
         toast.error('Failed to load crop details');
@@ -250,6 +256,12 @@ const CropDetails = () => {
                     <div>
                       <span className="text-gray-600">Name:</span>
                       <span className="ml-2 font-medium">{crop.farmers?.name || 'Unknown'}</span>
+                      {farmerRating.count > 0 && (
+                        <div className="flex items-center mt-1">
+                          <StarRating rating={farmerRating.average} size={14} className="mr-1" />
+                          <span className="text-xs text-gray-500 font-medium">({farmerRating.average.toFixed(1)} / {farmerRating.count} reviews)</span>
+                        </div>
+                      )}
                     </div>
                   </li>
                   {crop.farmers?.phone && (
@@ -372,11 +384,7 @@ const CropDetails = () => {
                       <div className="flex space-x-3">
                         <button
                           onClick={() => {
-                            console.log('Navigating to chat with:', { cropId: crop.id, farmerId: crop.farmers?.id });
-                            if (!crop.id || !crop.farmers?.id) {
-                              console.warn('Cannot navigate to chat: missing crop.id or crop.farmers.id', crop);
-                              return;
-                            }
+                            if (!crop.id || !crop.farmers?.id) return;
                             navigate(`/retailer/chats?crop=${crop.id}&farmer=${crop.farmers.id}`);
                           }}
                           className="px-4 py-2 border border-green-600 text-green-600 rounded-md hover:bg-green-50 transition-colors flex items-center"

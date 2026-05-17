@@ -1,13 +1,15 @@
 import { useAppStore } from '../lib/store';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, Calendar, Shield, ArrowLeft, Edit, Lock, Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
+import { User, Mail, Phone, MapPin, Calendar, Shield, ArrowLeft, Edit, Lock, Eye, EyeOff, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import StarRating from '../components/StarRating';
+import { Review } from '../lib/store';
 
 const Profile = () => {
-  const user = useAppStore(state => state.user);
+  const { user, getUserRating } = useAppStore();
   const navigate = useNavigate();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -20,6 +22,13 @@ const Profile = () => {
     confirmPassword: ''
   });
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [ratingData, setRatingData] = useState<{ average: number; count: number; reviews: Review[] }>({ average: 0, count: 0, reviews: [] });
+
+  useEffect(() => {
+    if (user) {
+      getUserRating(user.id).then(setRatingData);
+    }
+  }, [user, getUserRating]);
 
   if (!user) {
     return (
@@ -189,6 +198,12 @@ const Profile = () => {
                 <div className="flex items-center space-x-2 mt-2">
                   <span className="text-2xl">{getRoleIcon(user.role)}</span>
                   <span className="text-lg opacity-90">{user.role.charAt(0).toUpperCase() + user.role.slice(1)}</span>
+                  {ratingData.count > 0 && (
+                    <div className="flex items-center ml-4 bg-white/20 px-3 py-1 rounded-full">
+                      <StarRating rating={ratingData.average} size={16} className="mr-2" />
+                      <span className="text-sm font-medium">{ratingData.average.toFixed(1)} ({ratingData.count})</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -269,6 +284,31 @@ const Profile = () => {
                 </div>
               </div>
             </div>
+
+            {/* Reviews Section */}
+            {ratingData.count > 0 && (
+              <div className="mt-8 pt-8 border-t border-gray-200">
+                <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                  <Star size={20} className="mr-2 text-yellow-500" />
+                  Recent Reviews
+                </h3>
+                <div className="space-y-4">
+                  {ratingData.reviews.slice(0, 5).map(review => (
+                    <div key={review.id} className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <StarRating rating={review.rating} size={16} />
+                        <span className="text-xs text-gray-500">{formatDate(review.createdAt)}</span>
+                      </div>
+                      {review.comment ? (
+                        <p className="text-gray-700 text-sm mt-2">"{review.comment}"</p>
+                      ) : (
+                        <p className="text-gray-400 text-sm mt-2 italic">No comment provided.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="mt-8 pt-6 border-t border-gray-200">

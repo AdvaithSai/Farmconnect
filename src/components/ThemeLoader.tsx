@@ -1,23 +1,34 @@
 import React from 'react';
+import { Wheat } from 'lucide-react';
 
 const ThemeLoader: React.FC = () => (
   <div className="flex flex-col items-center justify-center min-h-[120px]">
-    <div className="relative flex items-center justify-center mb-2">
-      {/* Spinning sun */}
-      <svg className="animate-spin-slow absolute -top-8 left-1/2 -translate-x-1/2" width="48" height="48" viewBox="0 0 48 48" fill="none">
-        <circle cx="24" cy="24" r="20" stroke="#FFD600" strokeWidth="4" fill="none" />
-        <circle cx="24" cy="24" r="10" fill="#FFD600" fillOpacity="0.5" />
-      </svg>
-      {/* Sprouting plant */}
-      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-        <ellipse cx="32" cy="56" rx="18" ry="6" fill="#A3E635" fillOpacity="0.3" />
-        <rect x="29" y="32" width="6" height="18" rx="3" fill="#7C3F00" />
-        <path d="M32 32 Q28 24, 20 24 Q28 28, 32 32" fill="#22C55E" />
-        <path d="M32 32 Q36 24, 44 24 Q36 28, 32 32" fill="#22C55E" />
-        <circle cx="32" cy="32" r="4" fill="#22C55E" />
-      </svg>
+    <div className="relative flex items-center justify-center w-20 h-20">
+      {/* Glowing background */}
+      <div className="absolute inset-0 bg-green-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
+      
+      {/* Outer spinning dashed ring */}
+      <div className="absolute inset-0 rounded-full border-2 border-dashed border-green-500 animate-[spin_3s_linear_infinite]"></div>
+      
+      {/* Inner spinning solid ring */}
+      <div className="absolute inset-2 rounded-full border-t-2 border-l-2 border-yellow-400 animate-[spin_1.5s_linear_infinite_reverse]"></div>
+      
+      {/* Center Icon container */}
+      <div className="absolute inset-4 bg-white rounded-full shadow-inner flex items-center justify-center z-10">
+        <Wheat className="text-green-600 animate-pulse" size={24} />
+      </div>
     </div>
-    <span className="text-green-700 font-medium mt-2">Loading...</span>
+    
+    <div className="mt-6 flex flex-col items-center">
+      <div className="text-green-800 font-bold tracking-[0.2em] text-sm uppercase bg-clip-text text-transparent bg-gradient-to-r from-green-600 to-yellow-500">
+        FarmConnect
+      </div>
+      <div className="flex space-x-1 mt-2">
+        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+        <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+      </div>
+    </div>
   </div>
 );
 

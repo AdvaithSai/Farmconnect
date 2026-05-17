@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { CreditCard, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '../../lib/store';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 // Mock payment method data (in a real app, this would come from a payment processor)
 const paymentMethods = [
@@ -17,7 +19,13 @@ interface RazorpayResponse {
   razorpay_signature: string;
 }
 
-// TODO: Implement checkout and payment logic with Firebase Firestore.
+declare global {
+  interface Window {
+    Razorpay: new (options: Record<string, unknown>) => {
+      open: () => void;
+    };
+  }
+}
 
 type Offer = {
   id: string;
@@ -37,7 +45,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { user } = useAppStore();
   
-  const [offer] = useState<Offer | null>(null);
+  const [offer, setOffer] = useState<Offer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(paymentMethods[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -45,10 +53,58 @@ const Checkout = () => {
   
   useEffect(() => {
     const fetchOffer = async () => {
-      if (!offerId) return;
+      if (!offerId || !user) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
-      // TODO: Fetch offer from Firebase Firestore and update state
-      setIsLoading(false);
+      try {
+        // Fetch offer
+        const offerSnap = await getDoc(doc(db, 'offers', offerId));
+        if (!offerSnap.exists()) {
+          setIsLoading(false);
+          return;
+        }
+        const offerData = offerSnap.data();
+
+        // Ensure this offer belongs to the current retailer
+        if (offerData.retailer_id !== user.id) {
+          toast.error('You do not have permission to view this offer.');
+          navigate('/retailer/offers');
+          return;
+        }
+
+        // Fetch crop details
+        const cropSnap = await getDoc(doc(db, 'crops', offerData.crop_id));
+        const cropData = cropSnap.exists() ? cropSnap.data() : null;
+
+        // Fetch farmer name
+        let farmerName = 'Unknown Farmer';
+        if (cropData?.farmer_id) {
+          const farmerSnap = await getDoc(doc(db, 'users', cropData.farmer_id));
+          if (farmerSnap.exists()) {
+            farmerName = farmerSnap.data().name || 'Unknown Farmer';
+          }
+        }
+
+        setOffer({
+          id: offerSnap.id,
+          price: offerData.price,
+          crop_id: offerData.crop_id,
+          crops: {
+            name: cropData?.name || 'Unknown Crop',
+            image_url: cropData?.image_url ?? undefined,
+            quantity: cropData?.quantity ?? 1,
+            unit: cropData?.unit || 'unit',
+          },
+          farmers: [{ name: farmerName }],
+        });
+      } catch (err) {
+        console.error('Failed to fetch offer details:', err);
+        toast.error('Failed to load offer details.');
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchOffer();
   }, [offerId, user, navigate]);
@@ -59,14 +115,26 @@ const Checkout = () => {
     try {
       // Fetch Razorpay Key ID from backend
       const keyRes = await fetch('http://localhost:3000/razorpay-key');
+      if (!keyRes.ok) {
+        toast.error('Failed to connect to payment server. Please ensure the backend is running.');
+        setIsProcessing(false);
+        return;
+      }
       const keyData = await keyRes.json();
+      if (!keyData.success || !keyData.key) {
+        toast.error(`Payment configuration error: ${keyData.error || 'Invalid key response'}`);
+        setIsProcessing(false);
+        return;
+      }
       const keyId = keyData.key;
-      
+
+      const totalAmount = offer.price * offer.crops.quantity;
+
       const res = await fetch('http://localhost:3000/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: offer.price * offer.crops.quantity,
+          amount: totalAmount,
           receipt: offer.id,
         }),
       });
@@ -80,7 +148,7 @@ const Checkout = () => {
       const options = {
         key: keyId,
         amount: data.order.amount,
-        currency: data.order.currency,
+        currency: data.order.currency || 'INR',
         name: 'FarmConnect',
         description: 'Crop Payment',
         order_id: data.order.id,
@@ -118,7 +186,7 @@ const Checkout = () => {
             
           } catch (error) {
             console.error('Error updating transaction/crop status:', error);
-            toast.error('Payment succeeded but failed to update transaction/crop status. Please contact support.');
+            toast.error('Payment succeeded but failed to update status. Please contact support.');
           }
         },
         prefill: {
@@ -126,6 +194,16 @@ const Checkout = () => {
         },
         theme: { color: '#3399cc' },
       };
+
+      // Ensure Razorpay script is loaded
+      if (typeof window.Razorpay === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        await new Promise<void>((resolve) => { script.onload = () => resolve(); });
+      }
+
       const rzp = new window.Razorpay(options);
       rzp.open();
       
@@ -179,7 +257,7 @@ const Checkout = () => {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
             <p className="text-gray-600 mb-6">
-              Your payment of ${totalAmount.toFixed(2)} has been processed successfully.
+              Your payment of ₹{totalAmount.toFixed(2)} has been processed successfully.
             </p>
             
             <div className="bg-gray-50 p-4 rounded-md mb-6 text-left">
@@ -194,11 +272,11 @@ const Checkout = () => {
               </div>
               <div className="flex justify-between mb-1">
                 <span className="text-gray-600">Price per {offer.crops.unit}:</span>
-                <span className="text-gray-900">${offer.price.toFixed(2)}</span>
+                <span className="text-gray-900">₹{offer.price.toFixed(2)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-gray-200 mt-2">
                 <span className="text-gray-800 font-medium">Total:</span>
-                <span className="text-green-600 font-bold">${totalAmount.toFixed(2)}</span>
+                <span className="text-green-600 font-bold">₹{totalAmount.toFixed(2)}</span>
               </div>
             </div>
             
@@ -266,7 +344,7 @@ const Checkout = () => {
             <div className="bg-gray-50 p-4 rounded-md mb-6">
               <div className="flex justify-between mb-1">
                 <span className="text-gray-600">Price per {offer.crops.unit}:</span>
-                <span className="text-gray-900">${offer.price.toFixed(2)}</span>
+                <span className="text-gray-900">₹{offer.price.toFixed(2)}</span>
               </div>
               <div className="flex justify-between mb-1">
                 <span className="text-gray-600">Quantity:</span>
@@ -274,7 +352,7 @@ const Checkout = () => {
               </div>
               <div className="flex justify-between pt-2 border-t border-gray-200 mt-2">
                 <span className="text-gray-800 font-medium">Total:</span>
-                <span className="text-green-600 font-bold">${totalAmount.toFixed(2)}</span>
+                <span className="text-green-600 font-bold">₹{totalAmount.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -311,8 +389,7 @@ const Checkout = () => {
                 </div>
               ))}
             </div>
-            
-            {/* Mock payment form - would be replaced by actual payment gateway UI */}
+
             {selectedPaymentMethod === 'card' && (
               <div className="mt-6 border-t border-gray-200 pt-6">
                 <div className="mb-4">
@@ -404,7 +481,7 @@ const Checkout = () => {
         
         <div className="flex justify-between items-center">
           <p className="text-gray-600">
-            Total Amount: <span className="font-bold text-gray-900">${totalAmount.toFixed(2)}</span>
+            Total Amount: <span className="font-bold text-gray-900">₹{totalAmount.toFixed(2)}</span>
           </p>
           <button
             onClick={handleCheckout}
@@ -414,10 +491,6 @@ const Checkout = () => {
             {isProcessing ? 'Processing...' : 'Complete Purchase'}
           </button>
         </div>
-        
-        <p className="mt-4 text-sm text-gray-500 text-center">
-          This is a demo application. No actual payment will be processed.
-        </p>
       </div>
     </div>
   );

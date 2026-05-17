@@ -45,8 +45,6 @@ const ProtectedRoute = ({
 };
 
 function App() {
-  // TODO: Replace Supabase logic with Firebase Auth logic for session and user state.
-
   return (
     <Routes>
       {/* Public routes */}
