@@ -1,3 +1,5 @@
+import { onAuthStateChanged } from 'firebase/auth';
+import { toast } from 'react-hot-toast';
 import { create } from 'zustand';
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, signInWithPopup, UserCredential } from 'firebase/auth';
@@ -77,7 +79,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentChat: null,
   messages: [],
   farmerTransactions: [],
-  
+
   // Auth actions
   login: async (email, password) => {
     set({ loading: true });
@@ -177,7 +179,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   // Fetch data
   fetchCrops: async () => {
-    set({ loading: true });
+  set({ loading: true });
     try {
       const user = get().user;
       let cropsQuery;
@@ -197,7 +199,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (error) {
       set({ loading: false });
-      throw error;
+      // Don't clear user state on Firestore/network error
+  toast.error('Failed to fetch crops. Please check your connection.');
+      console.error('Error fetching crops:', error);
     }
   },
   
@@ -225,9 +229,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ userOffers: [] });
       return;
     }
-    const offersSnapshot = await getDocs(offersQuery);
-    const offers = offersSnapshot.docs.map(doc => ({ ...(doc.data() as Offer), id: doc.id }));
-    set({ userOffers: offers });
+    try {
+      const offersSnapshot = await getDocs(offersQuery);
+      const offers = offersSnapshot.docs.map(doc => ({ ...(doc.data() as Offer), id: doc.id }));
+      set({ userOffers: offers });
+    } catch (error) {
+      // Don't clear user state on Firestore/network error
+  toast.error('Failed to fetch offers. Please check your connection.');
+      console.error('Error fetching offers:', error);
+    }
   },
   
   fetchUserChats: async () => {
@@ -244,9 +254,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else {
       chatsQuery = query(chatsCol, where('retailer_id', '==', user.id));
     }
-    const chatsSnapshot = await getDocs(chatsQuery);
-    const chats = chatsSnapshot.docs.map(doc => ({ ...(doc.data() as Chat), id: doc.id }));
-    set({ chats, loading: false });
+    try {
+      const chatsSnapshot = await getDocs(chatsQuery);
+      const chats = chatsSnapshot.docs.map(doc => ({ ...(doc.data() as Chat), id: doc.id }));
+      set({ chats, loading: false });
+    } catch (error) {
+  toast.error('Failed to fetch chats. Please check your connection.');
+      console.error('Error fetching chats:', error);
+    }
   },
   
   fetchChatMessages: async (chatId) => {

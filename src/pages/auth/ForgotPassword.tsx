@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 
-const BACKEND_URL = 'http://localhost:3000'; // Change to your deployed backend URL when ready
+const BACKEND_URL = 'https://farmconnect-eight.vercel.app/request-otp'; // Change to your deployed backend URL when ready
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
