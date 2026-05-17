@@ -399,146 +399,180 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
   }, [currentChat, user, userOffers]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-white rounded-lg shadow-md pb-6">
+    <div className="flex flex-col h-full min-h-0 bg-transparent rounded-2xl pb-2 relative">
       {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-green-100 rounded-full">
-            <MessageCircle size={20} className="text-green-600" />
+      <div className="flex items-center justify-between p-4 border-b border-white/40 bg-white/50 backdrop-blur-md z-10 sticky top-0 rounded-t-2xl shadow-sm">
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <div className="p-2.5 bg-gradient-to-br from-green-400 to-green-600 rounded-full shadow-inner">
+              <MessageCircle size={22} className="text-white" />
+            </div>
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">{otherUserName}</h3>
-            <p className="text-sm text-gray-600">Re: {cropName}</p>
+            <h3 className="text-lg font-bold text-gray-900 drop-shadow-sm leading-tight">{otherUserName}</h3>
+            <p className="text-sm font-medium text-green-700 leading-tight">Re: {cropName}</p>
           </div>
         </div>
         <div className="flex items-center">
-          {showLocationTracker && <MapPin size={18} className="text-green-600 mr-2" />}
+          {showLocationTracker && (
+            <div className="flex items-center text-xs font-semibold text-green-700 bg-green-100/80 px-3 py-1.5 rounded-full shadow-sm animate-pulse border border-green-200">
+              <MapPin size={14} className="mr-1" /> Tracking Live
+            </div>
+          )}
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5 custom-scrollbar">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            <MessageCircle size={48} className="mx-auto mb-4 text-gray-300" />
-            <p>No messages yet. Start the conversation!</p>
+          <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 opacity-60">
+            <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center mb-4">
+              <MessageCircle size={32} className="text-gray-400" />
+            </div>
+            <p className="text-lg font-medium text-gray-600">No messages yet</p>
+            <p className="text-sm">Say hello and start negotiating!</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${isOwnMessage(msg.sender_id) ? 'justify-end' : 'justify-start'}`}
-            >
+          messages.map((msg) => {
+            const isOwn = isOwnMessage(msg.sender_id);
+            const isPriceNeg = msg.message_type === 'price_negotiation' && msg.price;
+            
+            return (
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  isOwnMessage(msg.sender_id)
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-900'
-                }`}
+                key={msg.id}
+                className={`flex w-full animate-[fadeIn_0.3s_ease-out] ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="text-sm flex items-center">
-                  {msg.content}
-                  {renderStatusIcon(msg)}
-                </div>
                 <div
-                  className={`text-xs mt-1 ${
-                    isOwnMessage(msg.sender_id) ? 'text-green-100 text-right' : 'text-gray-500 text-left'
+                  className={`relative max-w-[75%] lg:max-w-md px-4 py-3 shadow-md group ${
+                    isOwn
+                      ? 'bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl rounded-br-sm ml-4'
+                      : 'bg-white text-gray-800 rounded-2xl rounded-bl-sm border border-gray-100 mr-4'
                   }`}
                 >
-                  {formatTime(msg.created_at)}
-                </div>
-                {msg.message_type === 'price_negotiation' && msg.price && (
-                  <div className="mt-2 p-2 bg-yellow-100 rounded border-l-4 border-yellow-500">
-                    <div className="text-xs font-semibold text-yellow-800">
-                      Price Negotiation: ${msg.price}
+                  {isPriceNeg ? (
+                    <div className="flex flex-col">
+                      <div className="text-[15px] leading-relaxed font-medium mb-3">
+                        {msg.content}
+                      </div>
+                      <div className={`flex items-center justify-between p-3 rounded-xl border ${
+                        isOwn ? 'bg-white/20 border-white/30 text-white' : 'bg-yellow-50 border-yellow-200 text-yellow-900'
+                      }`}>
+                        <div className="flex items-center font-bold text-lg">
+                          <span className="text-sm mr-1 uppercase opacity-80">Offer:</span>
+                          ₹{msg.price}
+                        </div>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="text-[15px] leading-relaxed">
+                      {msg.content}
+                    </div>
+                  )}
+                  
+                  <div
+                    className={`flex items-center justify-end space-x-1 text-[11px] font-medium mt-1.5 opacity-80 ${
+                      isOwn ? 'text-green-100' : 'text-gray-500'
+                    }`}
+                  >
+                    <span>{formatTime(msg.created_at)}</span>
+                    {isOwn && (
+                      <span className="ml-1">
+                        {renderStatusIcon(msg)}
+                      </span>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-1" />
       </div>
 
-      {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
-        <div className="flex space-x-2">
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={!message.trim() || isLoading}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Send size={16} />
-          </button>
-        </div>
-      </form>
-      {/* Location Tracker */}
-      {showLocationTracker && transactionId && (
-        <div className="px-4 mb-4">
-          <LocationTracker 
-            key={transactionId}
-            transactionId={transactionId}
-            offerId={transactionId} /* Using transactionId as offerId since they're the same in our implementation */
-            farmerId={currentChat?.farmer_id || ''}
-            retailerId={currentChat?.retailer_id || ''}
-            onDeliveryComplete={() => {
-              toast.success('Delivery process completed!');
-            }}
-          />
-        </div>
-      )}
-      
-      {/* Price Negotiation Input for Retailer */}
-      {user?.role === 'retailer' && !showLocationTracker && (
-        <>
-          {/* Pay Now button logic */}
-          {(() => {
-            const cropId = currentChat?.crop_id;
-            const retailerId = user.id;
-            const offers = useAppStore.getState().userOffers;
-            const offer = offers.find(o => o.crop_id === cropId && o.retailer_id === retailerId && o.status === 'accepted');
-            if (offer) {
-              return (
-                <button
-                  className="w-full mb-2 py-2 px-4 bg-yellow-500 text-white font-medium rounded-md hover:bg-yellow-600 transition-colors"
-                  onClick={() => handlePayNow(offer)}
-                >
-                  Pay Now
-                </button>
-              );
-            }
-            return null;
-          })()}
-          <form onSubmit={handleSendPrice} className="p-4 border-t border-gray-200 bg-white flex space-x-2">
+      {/* Interactive Footer Elements */}
+      <div className="mt-auto flex flex-col px-4 pb-2 space-y-3 z-10 relative">
+        
+        {/* Location Tracker */}
+        {showLocationTracker && transactionId && (
+          <div className="w-full bg-white/60 backdrop-blur-md rounded-2xl shadow-sm border border-white p-1">
+            <LocationTracker 
+              key={transactionId}
+              transactionId={transactionId}
+              offerId={transactionId}
+              farmerId={currentChat?.farmer_id || ''}
+              retailerId={currentChat?.retailer_id || ''}
+              onDeliveryComplete={() => {
+                toast.success('Delivery process completed!');
+              }}
+            />
+          </div>
+        )}
+        
+        {/* Price Negotiation & Payment Input for Retailer */}
+        {user?.role === 'retailer' && !showLocationTracker && (
+          <div className="w-full flex flex-col space-y-2">
+            {(() => {
+              const cropId = currentChat?.crop_id;
+              const retailerId = user.id;
+              const offers = useAppStore.getState().userOffers;
+              const offer = offers.find(o => o.crop_id === cropId && o.retailer_id === retailerId && o.status === 'accepted');
+              if (offer) {
+                return (
+                  <button
+                    className="w-full py-3 px-6 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center space-x-2 border border-yellow-300"
+                    onClick={() => handlePayNow(offer)}
+                  >
+                    <CheckCheck size={20} />
+                    <span>Pay ₹{offer.price} Now</span>
+                  </button>
+                );
+              }
+              return null;
+            })()}
+            <form onSubmit={handleSendPrice} className="w-full flex space-x-2">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="Propose new price..."
+                className="flex-1 px-4 py-3 bg-white/70 backdrop-blur-sm border border-yellow-300/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:bg-white shadow-sm transition-all"
+                disabled={isPriceLoading}
+              />
+              <button
+                type="submit"
+                disabled={!price.trim() || isPriceLoading}
+                className="px-5 py-3 bg-yellow-500 text-yellow-950 font-bold rounded-2xl hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
+              >
+                {isPriceLoading ? '...' : 'Propose'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Message Input */}
+        <form onSubmit={handleSendMessage} className="w-full">
+          <div className="flex space-x-2">
             <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="Propose new price..."
-              className="flex-1 px-3 py-2 border border-yellow-400 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-              disabled={isPriceLoading}
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-1 px-5 py-3 bg-white/80 backdrop-blur-sm border border-white/60 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm transition-all text-gray-800 placeholder-gray-400"
+              disabled={isLoading}
             />
             <button
               type="submit"
-              disabled={!price.trim() || isPriceLoading}
-              className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              disabled={!message.trim() || isLoading}
+              className="p-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-full hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:shadow-none disabled:transform-none shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center"
             >
-              {isPriceLoading ? 'Sending...' : 'Propose Price'}
+              <Send size={20} className={message.trim() && !isLoading ? "ml-1" : ""} />
             </button>
-          </form>
-        </>
-      )}
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

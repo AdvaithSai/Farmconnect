@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { create } from 'zustand';
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, signInWithPopup, UserCredential } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, addDoc, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import type { Database } from './database.types';
 
 type User = Database['public']['Tables']['users']['Row'];
@@ -32,6 +32,12 @@ interface AppState {
   currentChat: { id: string; crop_id: string; farmer_id: string; retailer_id: string } | null;
   messages: Message[];
   farmerTransactions: Transaction[];
+  
+  // Real-time listener unsubs
+  unsubCrops: (() => void) | null;
+  unsubOffers: (() => void) | null;
+  unsubChats: (() => void) | null;
+  unsubTransactions: (() => void) | null;
   
   // Auth actions
   login: (email: string, password: string) => Promise<{ error: unknown | null }>;
@@ -80,6 +86,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   messages: [],
   farmerTransactions: [],
 
+  // Real-time listener unsubs
+  unsubCrops: null,
+  unsubOffers: null,
+  unsubChats: null,
+  unsubTransactions: null,
+
   // Auth actions
   login: async (email, password) => {
     set({ loading: true });
@@ -115,8 +127,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   
   logout: async () => {
+    const { unsubCrops, unsubOffers, unsubChats, unsubTransactions } = get();
+    if (unsubCrops) unsubCrops();
+    if (unsubOffers) unsubOffers();
+    if (unsubChats) unsubChats();
+    if (unsubTransactions) unsubTransactions();
+    
     await signOut(auth);
-    set({ user: null, crops: [], userOffers: [], chats: [], currentChat: null, messages: [] });
+    set({ 
+      user: null, crops: [], userOffers: [], chats: [], currentChat: null, messages: [], farmerTransactions: [],
+      unsubCrops: null, unsubOffers: null, unsubChats: null, unsubTransactions: null 
+    });
   },
   
   loginWithGoogle: async () => {
@@ -177,31 +198,36 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   
-  // Fetch data
+  // Fetch data with real-time listeners
   fetchCrops: async () => {
-  set({ loading: true });
+    set({ loading: true });
     try {
+      // Unsubscribe from previous listener if it exists
+      const currentUnsub = get().unsubCrops;
+      if (currentUnsub) currentUnsub();
+
       const user = get().user;
       let cropsQuery;
       if (user && user.role === 'farmer') {
-        // Only fetch crops for this farmer
         cropsQuery = query(collection(db, 'crops'), where('farmer_id', '==', user.id));
-        const querySnapshot = await getDocs(cropsQuery);
-        const crops = querySnapshot.docs.map(doc => ({ ...(doc.data() as Crop), id: doc.id }));
-        set({ crops, loading: false });
       } else {
-        // Fetch all crops (for retailer or not logged in)
-        const cropsCol = collection(db, 'crops');
-        const cropsQuery = query(cropsCol, where('status', '==', 'available'));
-        const querySnapshot = await getDocs(cropsQuery);
+        cropsQuery = query(collection(db, 'crops'), where('status', '==', 'available'));
+      }
+      
+      const unsubCrops = onSnapshot(cropsQuery, (querySnapshot) => {
         const crops = querySnapshot.docs.map(doc => ({ ...(doc.data() as Crop), id: doc.id }));
         set({ crops, loading: false });
-      }
+      }, (error) => {
+        console.error('Error fetching crops:', error);
+        toast.error('Failed to sync crops in real-time.');
+        set({ loading: false });
+      });
+
+      set({ unsubCrops });
     } catch (error) {
       set({ loading: false });
-      // Don't clear user state on Firestore/network error
-  toast.error('Failed to fetch crops. Please check your connection.');
-      console.error('Error fetching crops:', error);
+      toast.error('Failed to initialize crops listener.');
+      console.error('Error in fetchCrops:', error);
     }
   },
   
@@ -211,9 +237,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ userOffers: [] });
       return;
     }
+
+    const currentUnsub = get().unsubOffers;
+    if (currentUnsub) currentUnsub();
+
     let offersQuery;
     if (user.role === 'farmer') {
-      // Fetch all crops for this farmer
       const cropsQuery = query(collection(db, 'crops'), where('farmer_id', '==', user.id));
       const cropsSnapshot = await getDocs(cropsQuery);
       const cropIds = cropsSnapshot.docs.map(doc => doc.id);
@@ -223,20 +252,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       offersQuery = query(collection(db, 'offers'), where('crop_id', 'in', cropIds));
     } else if (user.role === 'retailer') {
-      // Fetch all offers made by this retailer
       offersQuery = query(collection(db, 'offers'), where('retailer_id', '==', user.id));
     } else {
       set({ userOffers: [] });
       return;
     }
+    
     try {
-      const offersSnapshot = await getDocs(offersQuery);
-      const offers = offersSnapshot.docs.map(doc => ({ ...(doc.data() as Offer), id: doc.id }));
-      set({ userOffers: offers });
+      const unsubOffers = onSnapshot(offersQuery, (offersSnapshot) => {
+        const offers = offersSnapshot.docs.map(doc => ({ ...(doc.data() as Offer), id: doc.id }));
+        set({ userOffers: offers });
+      }, (error) => {
+        console.error('Error fetching offers:', error);
+      });
+      set({ unsubOffers });
     } catch (error) {
-      // Don't clear user state on Firestore/network error
-  toast.error('Failed to fetch offers. Please check your connection.');
-      console.error('Error fetching offers:', error);
+      toast.error('Failed to sync offers in real-time.');
+      console.error('Error in fetchUserOffers:', error);
     }
   },
   
@@ -246,7 +278,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ chats: [] });
       return;
     }
-    // Fetch all chats for this user (farmer or retailer)
+
+    const currentUnsub = get().unsubChats;
+    if (currentUnsub) currentUnsub();
+
     const chatsCol = collection(db, 'chats');
     let chatsQuery;
     if (user.role === 'farmer') {
@@ -254,13 +289,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else {
       chatsQuery = query(chatsCol, where('retailer_id', '==', user.id));
     }
+    
     try {
-      const chatsSnapshot = await getDocs(chatsQuery);
-      const chats = chatsSnapshot.docs.map(doc => ({ ...(doc.data() as Chat), id: doc.id }));
-      set({ chats, loading: false });
+      const unsubChats = onSnapshot(chatsQuery, (chatsSnapshot) => {
+        const chats = chatsSnapshot.docs.map(doc => ({ ...(doc.data() as Chat), id: doc.id }));
+        set({ chats, loading: false });
+      }, (error) => {
+        console.error('Error fetching chats:', error);
+      });
+      set({ unsubChats });
     } catch (error) {
-  toast.error('Failed to fetch chats. Please check your connection.');
-      console.error('Error fetching chats:', error);
+      toast.error('Failed to sync chats in real-time.');
+      console.error('Error in fetchUserChats:', error);
     }
   },
   
@@ -284,7 +324,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ farmerTransactions: [] });
       return;
     }
-    // Get all crops for this farmer
+
+    const currentUnsub = get().unsubTransactions;
+    if (currentUnsub) currentUnsub();
+
     const cropsQuery = query(collection(db, 'crops'), where('farmer_id', '==', user.id));
     const cropsSnapshot = await getDocs(cropsQuery);
     const cropIds = cropsSnapshot.docs.map(doc => doc.id);
@@ -292,11 +335,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ farmerTransactions: [] });
       return;
     }
-    // Get all transactions for these crops
+    
     const txQuery = query(collection(db, 'transactions'), where('crop_id', 'in', cropIds));
-    const txSnapshot = await getDocs(txQuery);
-    const transactions = txSnapshot.docs.map(doc => ({ ...(doc.data() as Transaction), id: doc.id }));
-    set({ farmerTransactions: transactions });
+    
+    try {
+      const unsubTransactions = onSnapshot(txQuery, (txSnapshot) => {
+        const transactions = txSnapshot.docs.map(doc => ({ ...(doc.data() as Transaction), id: doc.id }));
+        set({ farmerTransactions: transactions });
+      });
+      set({ unsubTransactions });
+    } catch (error) {
+      console.error('Error in fetchFarmerTransactions:', error);
+    }
   },
   
   // Farmer actions

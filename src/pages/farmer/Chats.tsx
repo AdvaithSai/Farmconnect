@@ -70,52 +70,62 @@ const FarmerChats = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-4">
-          <Link
-            to="/farmer/dashboard"
-            className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
-            <p className="text-gray-600">Chat with retailers about your crops</p>
-          </div>
-        </div>
+    <div className="relative min-h-[calc(100vh-73px)] bg-gradient-to-br from-green-50 to-green-100/50">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-green-200/40 blur-3xl" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-yellow-200/40 blur-3xl" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
-        {/* Chat List */}
-        <div className="lg:col-span-1">
-          <ChatList
-            onSelectChat={handleSelectChat}
-            selectedChatId={selectedChat?.id}
-          />
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <Link
+              to="/farmer/dashboard"
+              className="p-2 text-gray-600 hover:text-green-700 bg-white/50 backdrop-blur-sm rounded-full shadow-sm transition-all"
+            >
+              <ArrowLeft size={20} />
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 drop-shadow-sm">Messages</h1>
+              <p className="text-gray-600">Chat with retailers about your crops</p>
+            </div>
+          </div>
         </div>
 
-        {/* Chat Area */}
-        <div className="lg:col-span-2 h-[calc(100vh-150px)] flex flex-col min-h-0">
-          {selectedChat && chatDetails ? (
-            <Chat
-              chatId={selectedChat.id}
-              otherUserName={chatDetails.otherUserName}
-              cropName={chatDetails.cropName}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-200px)]">
+          {/* Chat List */}
+          <div className="lg:col-span-4 h-full">
+            <ChatList
+              onSelectChat={handleSelectChat}
+              selectedChatId={selectedChat?.id}
             />
-          ) : (
-            <div className="h-full bg-white rounded-lg shadow-md flex items-center justify-center">
-              <div className="text-center">
-                <MessageCircle size={64} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Select a conversation
-                </h3>
-                <p className="text-gray-500">
-                  Choose a chat from the list to start messaging
-                </p>
+          </div>
+
+          {/* Chat Area */}
+          <div className="lg:col-span-8 h-full flex flex-col min-h-0 bg-white/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/60 overflow-hidden">
+            {selectedChat && chatDetails ? (
+              <Chat
+                chatId={selectedChat.id}
+                otherUserName={chatDetails.otherUserName}
+                cropName={chatDetails.cropName}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center p-8 text-center animate-[fadeIn_0.5s_ease-out]">
+                <div className="max-w-sm">
+                  <div className="w-24 h-24 bg-green-100/50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-white">
+                    <MessageCircle size={40} className="text-green-500" />
+                  </div>
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+                    Your Messages
+                  </h3>
+                  <p className="text-gray-500 leading-relaxed">
+                    Select a conversation from the sidebar to view messages, negotiate prices, and finalize offers.
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

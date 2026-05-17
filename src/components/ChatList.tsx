@@ -125,63 +125,71 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId }) => 
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md">
-      <div className="px-4 py-3 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Your Conversations</h2>
+    <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl border border-white/60 h-full flex flex-col overflow-hidden">
+      <div className="px-6 py-5 border-b border-white/40 bg-white/30 backdrop-blur-sm">
+        <h2 className="text-xl font-bold text-gray-900 drop-shadow-sm">Conversations</h2>
       </div>
-      <div className="divide-y divide-gray-200 overflow-y-auto max-h-[700px]">
+      
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {chats.length === 0 ? (
-          <div className="p-6 text-center">
-            <MessageCircle size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">No conversations yet.</p>
-            <p className="text-sm text-gray-400">Start chatting when you make or receive offers.</p>
+          <div className="p-8 text-center flex flex-col items-center justify-center h-full opacity-70">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4 border border-gray-200">
+              <MessageCircle size={32} className="text-gray-400" />
+            </div>
+            <p className="text-gray-600 font-medium text-lg">No conversations yet</p>
+            <p className="text-sm text-gray-400 mt-1 max-w-[200px]">Start chatting when you make or receive offers.</p>
           </div>
         ) : (
-          chats.map((chat) => {
-            const details = chatDetails[chat.id];
-            const isSelected = selectedChatId === chat.id;
-            const unreadCount = getUnreadCount(chat.id);
-            return (
-              <div
-                key={chat.id}
-                onClick={() => onSelectChat(chat)}
-                className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 ${
-                  isSelected ? 'bg-green-50 border-l-4 border-green-500' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                          <MessageCircle size={20} className="text-green-600" />
+          <div className="p-3 space-y-2">
+            {chats.map((chat) => {
+              const details = chatDetails[chat.id];
+              const isSelected = selectedChatId === chat.id;
+              const unreadCount = getUnreadCount(chat.id);
+              
+              return (
+                <div
+                  key={chat.id}
+                  onClick={() => onSelectChat(chat)}
+                  className={`group relative p-4 cursor-pointer transition-all duration-200 rounded-xl border ${
+                    isSelected 
+                      ? 'bg-gradient-to-r from-green-500 to-green-600 border-green-500 shadow-md shadow-green-500/20 transform scale-[1.02]' 
+                      : 'bg-white/40 hover:bg-white border-white/50 hover:shadow-sm hover:scale-[1.01]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0 relative">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner transition-colors ${isSelected ? 'bg-white/20' : 'bg-gradient-to-br from-green-100 to-green-200 group-hover:from-green-200 group-hover:to-green-300'}`}>
+                            <MessageCircle size={22} className={isSelected ? 'text-white' : 'text-green-700'} />
+                          </div>
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 ring-2 ring-white text-[10px] font-bold text-white shadow-sm animate-pulse">
+                              {unreadCount}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-base font-semibold truncate transition-colors ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                            {details?.otherUserName || 'Loading...'}
+                          </p>
+                          <p className={`text-sm font-medium truncate mt-0.5 transition-colors ${isSelected ? 'text-green-100' : 'text-gray-500'}`}>
+                            Re: {details?.cropName || 'Loading...'}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {details?.otherUserName || 'Loading...'}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate">
-                          Re: {details?.cropName || 'Loading...'}
-                        </p>
-                      </div>
                     </div>
-                  </div>
-                  <div className="flex-shrink-0 ml-4">
-                    <div className="flex items-center space-x-1 text-xs text-gray-500">
-                      <Clock size={12} />
-                      <span>{formatLastMessageTime(chat.last_message_at)}</span>
-                      {unreadCount > 0 && (
-                        <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-green-600 rounded-full">
-                          {unreadCount}
-                        </span>
-                      )}
+                    <div className="flex-shrink-0 ml-4 flex flex-col items-end">
+                      <div className={`flex items-center space-x-1 text-[11px] font-semibold tracking-wide uppercase transition-colors ${isSelected ? 'text-green-200' : 'text-gray-400'}`}>
+                        <Clock size={12} className={isSelected ? 'opacity-80' : 'opacity-60'} />
+                        <span>{formatLastMessageTime(chat.last_message_at)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
