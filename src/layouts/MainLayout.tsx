@@ -80,13 +80,14 @@ const MainLayout = () => {
               </Link>
             </div>
             
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              {user ? (
-                <>
+            {/* Right Side: Navigation, Translate, User Profile, Mobile Menu */}
+            <div className="flex items-center space-x-3 md:space-x-4">
+              {/* Desktop Navigation Links */}
+              {user && (
+                <nav className="hidden md:flex items-center space-x-6 mr-2">
                   {/* Farmer Navigation Links */}
                   {user.role === 'farmer' && (
-                    <div className="flex items-center space-x-8">
+                    <>
                       <Link 
                         to="/farmer/dashboard" 
                         className={`relative font-bold text-sm tracking-wide transition-all duration-300 py-1 ${
@@ -126,12 +127,12 @@ const MainLayout = () => {
                           <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-yellow-400 rounded-full shadow-[0_0_8px_#facc15]" />
                         )}
                       </Link>
-                    </div>
+                    </>
                   )}
                   
                   {/* Retailer Navigation Links */}
                   {user.role === 'retailer' && (
-                    <div className="flex items-center space-x-8">
+                    <>
                       <Link 
                         to="/retailer/dashboard" 
                         className={`relative font-bold text-sm tracking-wide transition-all duration-300 py-1 ${
@@ -158,16 +159,23 @@ const MainLayout = () => {
                           <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-yellow-400 rounded-full shadow-[0_0_8px_#facc15]" />
                         )}
                       </Link>
-                    </div>
+                    </>
                   )}
-                  
-                  {/* Visual Glass Pill for User Options */}
-                  <div className="flex items-center gap-4 bg-white/10 hover:bg-white/15 border border-white/15 shadow-[inset_0_1px_2px_rgba(255,255,255,0.15)] backdrop-blur-md rounded-full px-4 py-1.5 transition-all duration-300">
-                    <GoogleTranslate id="google_translate_desktop" />
-                    <div className="w-px h-5 bg-white/20" />
+                </nav>
+              )}
+              
+              {/* Stable, Persistently Mounted Google Translate Widget (Always visible on mobile & desktop) */}
+              <div className="flex items-center">
+                <GoogleTranslate id="google_translate_element" />
+              </div>
+              
+              {/* Desktop User Options or Auth Pills */}
+              <div className="hidden md:block">
+                {user ? (
+                  <div className="flex items-center gap-3.5 bg-white/10 hover:bg-white/15 border border-white/15 shadow-[inset_0_1px_2px_rgba(255,255,255,0.15)] backdrop-blur-md rounded-full px-4 py-1.5 transition-all duration-300">
                     <button 
                       onClick={() => navigate('/profile')}
-                      className="flex items-center space-x-2.5 text-white/90 hover:text-yellow-400 transition-all duration-300 cursor-pointer group"
+                      className="flex items-center space-x-2 text-white hover:text-yellow-400 transition-all duration-300 cursor-pointer group"
                       title="View Profile"
                     >
                       <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-500 to-green-400 group-hover:from-yellow-500 group-hover:to-amber-400 flex items-center justify-center text-white border border-white/20 group-hover:scale-110 transition-all duration-300 shadow-sm">
@@ -175,6 +183,7 @@ const MainLayout = () => {
                       </div>
                       <span className="text-xs font-bold tracking-wide">{user.name}</span>
                     </button>
+                    <div className="w-px h-4 bg-white/20" />
                     <button 
                       onClick={handleLogout}
                       className="p-1.5 rounded-full bg-white/5 hover:bg-red-500/20 hover:text-red-400 border border-white/5 hover:border-red-500/20 transition-all duration-300 cursor-pointer active:scale-95 shadow-sm"
@@ -183,35 +192,32 @@ const MainLayout = () => {
                       <LogOut size={14} />
                     </button>
                   </div>
-                </>
-              ) : (
-                /* Visual Glass Pill for Auth Options */
-                <div className="flex items-center gap-4 bg-white/10 hover:bg-white/15 border border-white/15 shadow-[inset_0_1px_2px_rgba(255,255,255,0.15)] backdrop-blur-md rounded-full px-4 py-1.5 transition-all duration-300">
-                  <GoogleTranslate id="google_translate_desktop" />
-                  <div className="w-px h-5 bg-white/20" />
-                  <Link 
-                    to="/login" 
-                    className="px-4 py-1.5 text-xs font-extrabold bg-transparent border border-white/30 text-white rounded-full hover:bg-white hover:text-green-950 transition-all duration-300 shadow-sm hover:scale-105 active:scale-95"
-                  >
-                    Login
-                  </Link>
-                  <Link 
-                    to="/register" 
-                    className="px-4 py-1.5 text-xs font-extrabold bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-green-950 rounded-full transition-all duration-300 shadow-md hover:shadow-yellow-500/20 transform hover:-translate-y-0.5 active:scale-95"
-                  >
-                    Register
-                  </Link>
-                </div>
-              )}
-            </nav>
-            
-            {/* Mobile Menu Button */}
-            <button 
-              className="md:hidden p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 transition-all cursor-pointer active:scale-95"
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+                ) : (
+                  <div className="flex items-center gap-3 bg-white/10 hover:bg-white/15 border border-white/15 shadow-[inset_0_1px_2px_rgba(255,255,255,0.15)] backdrop-blur-md rounded-full px-4 py-1.5 transition-all duration-300">
+                    <Link 
+                      to="/login" 
+                      className="px-4 py-1.5 text-xs font-extrabold bg-transparent border border-white/30 text-white rounded-full hover:bg-white hover:text-green-950 transition-all duration-300 shadow-sm hover:scale-105 active:scale-95"
+                    >
+                      Login
+                    </Link>
+                    <Link 
+                      to="/register" 
+                      className="px-4 py-1.5 text-xs font-extrabold bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-green-950 rounded-full transition-all duration-300 shadow-md hover:shadow-yellow-500/20 transform hover:-translate-y-0.5 active:scale-95"
+                    >
+                      Register
+                    </Link>
+                  </div>
+                )}
+              </div>
+              
+              {/* Mobile Menu Button */}
+              <button 
+                className="md:hidden p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 transition-all cursor-pointer active:scale-95"
+                onClick={() => setMenuOpen(!menuOpen)}
+              >
+                {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
           </div>
         </div>
         
@@ -293,57 +299,47 @@ const MainLayout = () => {
                 )}
                 
                 {/* User Mobile Actions */}
-                <div className="pt-4 flex flex-col space-y-4 border-t border-white/15">
-                  <div className="flex justify-center w-full">
-                    <GoogleTranslate id="google_translate_mobile_user" />
-                  </div>
-                  <div className="flex items-center justify-between pt-2">
-                    <button 
-                      onClick={() => {
-                        navigate('/profile');
-                        setMenuOpen(false);
-                      }}
-                      className="flex items-center space-x-3 py-2 px-4 rounded-xl bg-white/5 border border-white/10 text-white hover:text-yellow-400 transition-all duration-200 cursor-pointer"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-green-400 flex items-center justify-center text-white shadow-sm border border-white/20">
-                        <User size={15} />
-                      </div>
-                      <span className="font-bold text-sm">{user.name}</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        handleLogout();
-                        setMenuOpen(false);
-                      }}
-                      className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-red-500/20 border border-red-500/20 text-red-300 hover:text-white hover:bg-red-500/30 transition-all duration-200 animate-pulse-subtle"
-                    >
-                      <LogOut size={16} />
-                      <span className="text-sm font-bold">Logout</span>
-                    </button>
-                  </div>
+                <div className="pt-4 flex items-center justify-between border-t border-white/15">
+                  <button 
+                    onClick={() => {
+                      navigate('/profile');
+                      setMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-3 py-2 px-4 rounded-xl bg-white/5 border border-white/10 text-white hover:text-yellow-400 transition-all duration-200 cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-green-400 flex items-center justify-center text-white shadow-sm border border-white/20">
+                      <User size={15} />
+                    </div>
+                    <span className="font-bold text-sm">{user.name}</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      handleLogout();
+                      setMenuOpen(false);
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-red-500/20 border border-red-500/20 text-red-300 hover:text-white hover:bg-red-500/30 transition-all duration-200"
+                  >
+                    <LogOut size={16} />
+                    <span className="text-sm font-bold">Logout</span>
+                  </button>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col space-y-4">
-                <div className="flex justify-center w-full">
-                  <GoogleTranslate id="google_translate_mobile_guest" />
-                </div>
-                <div className="flex items-center gap-4 pt-4 border-t border-white/15">
-                  <Link 
-                    to="/login" 
-                    className="flex-1 text-center py-2.5 text-sm font-extrabold bg-transparent border border-white/25 text-white rounded-full hover:bg-white hover:text-green-950 transition-colors"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Login
-                  </Link>
-                  <Link 
-                    to="/register" 
-                    className="flex-1 text-center py-2.5 text-sm font-extrabold bg-gradient-to-r from-yellow-500 to-amber-500 text-green-950 rounded-full hover:from-yellow-400 hover:to-amber-400 transition-all duration-200 shadow-md"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Register
-                  </Link>
-                </div>
+              <div className="flex items-center gap-4 pt-2">
+                <Link 
+                  to="/login" 
+                  className="flex-1 text-center py-2.5 text-sm font-extrabold bg-transparent border border-white/25 text-white rounded-full hover:bg-white hover:text-green-950 transition-colors"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Login
+                </Link>
+                <Link 
+                  to="/register" 
+                  className="flex-1 text-center py-2.5 text-sm font-extrabold bg-gradient-to-r from-yellow-500 to-amber-500 text-green-950 rounded-full hover:from-yellow-400 hover:to-amber-400 transition-all duration-200 shadow-md"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Register
+                </Link>
               </div>
             )}
           </nav>

@@ -84,14 +84,21 @@
   display: none !important;
 }
 
-/* ─── Global Google banners & popups — remove completely ──────────────────── */
+/* ─── Global Google banners & popups ──────────────────── */
 .goog-te-banner-frame,
 .goog-te-balloon-frame,
-.goog-te-menu-frame,
 .goog-te-banner {
   display: none !important;
   height: 0 !important;
   visibility: hidden !important;
+}
+
+/* Custom styling for the Google Translate popup menu iframe */
+.goog-te-menu-frame {
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
 }
 
 /* Prevent body shift caused by Google's top banner */
