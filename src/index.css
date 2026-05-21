@@ -5,7 +5,7 @@
 /* ─── Google Translate Widget – Polished Navbar Style ─────────────────────── */
 
 /* Wrapper injected by Google — absolutely fills the parent container */
-#google_translate_element {
+.google-translate-container {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
@@ -15,7 +15,7 @@
   display: block !important;
 }
 
-#google_translate_element .goog-te-gadget {
+.google-translate-container .goog-te-gadget {
   color: transparent !important; /* Hide "Powered by" text */
   font-size: 0 !important;
   line-height: 0 !important;
@@ -26,7 +26,7 @@
   height: 100% !important;
 }
 
-#google_translate_element .goog-te-gadget > span {
+.google-translate-container .goog-te-gadget > span {
   display: block !important;
   width: 100% !important;
   height: 100% !important;
@@ -35,7 +35,7 @@
 }
 
 /* The <select> dropdown — covers the entire parent container */
-#google_translate_element .goog-te-gadget .goog-te-combo {
+.google-translate-container .goog-te-gadget .goog-te-combo {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
@@ -47,11 +47,11 @@
   box-shadow: none !important;
   font-family: inherit !important;
   font-size: 13px !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   cursor: pointer !important;
   
   /* Text positioning: pad on the left to push text past the globe icon */
-  padding: 0 22px 0 28px !important;
+  padding: 0 24px 0 28px !important;
   margin: 0 !important;
 
   /* Custom chevron dropdown icon on the right */
@@ -60,25 +60,27 @@
   appearance: none !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.9)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
-  background-position: right 8px center !important;
+  background-position: right 10px center !important;
 }
 
 /* Dropdown option items */
-#google_translate_element .goog-te-gadget .goog-te-combo option {
-  background-color: #166534 !important;
+.google-translate-container .goog-te-gadget .goog-te-combo option {
+  background-color: #064e3b !important; /* dark green */
   color: white !important;
   font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 6px !important;
 }
 
 /* Hide the Google logo inside the gadget */
-#google_translate_element .goog-te-gadget-icon,
-#google_translate_element img,
-#google_translate_element .goog-logo-link {
+.google-translate-container .goog-te-gadget-icon,
+.google-translate-container img,
+.google-translate-container .goog-logo-link {
   display: none !important;
 }
 
 /* Hide translate attribution links */
-#google_translate_element .goog-te-gadget a {
+.google-translate-container .goog-te-gadget a {
   display: none !important;
 }
 
