@@ -4,9 +4,9 @@
 
 /* ─── Google Translate Widget – Polished Navbar Style ─────────────────────── */
 
-/* Wrapper injected by Google */
+/* Wrapper injected by Google — remove the "Powered by" text size */
 #google_translate_element .goog-te-gadget {
-  color: transparent !important;   /* hide "Powered by" text */
+  color: transparent !important;
   font-size: 0 !important;
   line-height: 0 !important;
   margin: 0 !important;
@@ -15,7 +15,7 @@
   align-items: center !important;
 }
 
-/* The <select> dropdown itself */
+/* The <select> dropdown — fully transparent, white text, no border */
 #google_translate_element .goog-te-gadget .goog-te-combo {
   background: transparent !important;
   color: white !important;
@@ -25,18 +25,17 @@
   font-family: inherit !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  padding: 0 2px !important;
+  padding: 0 18px 0 2px !important;
   margin: 0 !important;
   cursor: pointer !important;
-  /* Remove default select arrow on Chrome */
+  /* Hide OS default arrow and replace with our SVG chevron */
   -webkit-appearance: none !important;
+  -moz-appearance: none !important;
   appearance: none !important;
-  /* Custom small chevron */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.8)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
-  background-position: right 0px center !important;
-  padding-right: 14px !important;
-  max-width: 120px !important;
+  background-position: right 2px center !important;
+  max-width: 130px !important;
 }
 
 /* Dropdown option items */
@@ -46,36 +45,28 @@
   font-size: 13px !important;
 }
 
-/* Hide the Google logo/icon inside the gadget */
+/* Hide the Google logo inside the gadget */
 #google_translate_element .goog-te-gadget-icon,
 #google_translate_element img {
   display: none !important;
 }
 
-/* Hide the "Powered by Google" label and translate link */
+/* Hide the "Powered by Google" and translate attribution links */
 #google_translate_element .goog-te-gadget > span,
 #google_translate_element .goog-te-gadget a {
   display: none !important;
 }
 
-/* ─── Global Google Translate Banners – Remove all ────────────────────────── */
-body .goog-te-banner-frame.skiptranslate,
-body .goog-te-balloon-frame,
-body .goog-te-menu-frame,
-body .goog-te-menu2 {
+/* ─── Global Google banners & popups — remove completely ──────────────────── */
+.goog-te-banner-frame,
+.goog-te-balloon-frame,
+.goog-te-menu-frame {
   display: none !important;
   height: 0 !important;
   visibility: hidden !important;
-  pointer-events: none !important;
 }
 
 /* Prevent body shift caused by Google's top banner */
 body {
   top: 0 !important;
-}
-
-/* ─── Translate widget container (our wrapper div) ─────────────────────────── */
-.translate-widget-container {
-  display: flex;
-  align-items: center;
 }

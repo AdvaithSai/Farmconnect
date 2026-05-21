@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 declare global {
   interface Window {
     google: {
@@ -10,12 +12,44 @@ declare global {
         };
       };
     };
+    googleTranslateElementInit: () => void;
   }
 }
 
 const GoogleTranslate = () => {
+  useEffect(() => {
+    // Define the init callback Google's script will call
+    window.googleTranslateElementInit = () => {
+      new window.google.translate.TranslateElement(
+        {
+          pageLanguage: 'en',
+          layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+        },
+        'google_translate_element'
+      );
+    };
+
+    // If Google's script is already loaded, call init directly
+    if (window.google?.translate?.TranslateElement) {
+      window.googleTranslateElementInit();
+      return;
+    }
+
+    // Otherwise dynamically load the script
+    const existing = document.querySelector(
+      'script[src*="translate.google.com"]'
+    );
+    if (!existing) {
+      const script = document.createElement('script');
+      script.src =
+        '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
   return (
-    <div className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-all duration-200 rounded-full px-3 py-1.5 border border-white/20 backdrop-blur-sm">
+    <div className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-all duration-200 rounded-full px-3 py-1.5 border border-white/20 backdrop-blur-sm cursor-pointer">
       {/* Globe icon */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -27,14 +61,14 @@ const GoogleTranslate = () => {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-white/90 flex-shrink-0"
+        className="text-white/90 flex-shrink-0 pointer-events-none"
       >
         <circle cx="12" cy="12" r="10" />
         <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
         <path d="M2 12h20" />
       </svg>
-      {/* Google Translate dropdown gets injected here */}
-      <div id="google_translate_element" className="translate-widget-container" />
+      {/* Google Translate dropdown injected here after mount */}
+      <div id="google_translate_element" />
     </div>
   );
 };
