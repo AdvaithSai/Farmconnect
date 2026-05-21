@@ -3,6 +3,7 @@ import { useAppStore } from '../lib/store';
 import { ShoppingBag, Tractor, Wheat, TrendingUp, BarChart3, HandCoins } from 'lucide-react';
 import ScrollSlider from '../components/ScrollSlider';
 import ScrollReveal from '../components/ScrollReveal';
+import CropMagic from '../components/CropMagic';
 
 const Home = () => {
   const user = useAppStore(state => state.user);
@@ -139,7 +140,86 @@ const Home = () => {
           </div>
         </div>
       </section>
-      
+
+      {/* Cinematic MCU Crop Magic Section */}
+      <section className="py-24 bg-gradient-to-b from-green-950 to-black text-white relative overflow-hidden border-y border-white/5">
+        {/* Mysterious background orbs */}
+        <div className="absolute top-1/4 left-10 w-96 h-96 bg-green-900/20 rounded-full blur-3xl -ml-20 pointer-events-none" />
+        <div className="absolute bottom-1/4 right-10 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl -mr-20 pointer-events-none" />
+
+        <div className="container mx-auto px-4 md:px-8">
+          <div className="grid lg:grid-cols-12 gap-12 items-center">
+            
+            {/* Magic Description Details */}
+            <div className="lg:col-span-6 flex flex-col justify-center space-y-6">
+              <ScrollReveal delay={100} duration={850}>
+                <span className="text-yellow-400 font-extrabold text-sm uppercase tracking-widest bg-yellow-500/10 border border-yellow-500/20 rounded-full px-4 py-1.5 w-fit">
+                  🔮 MCU Agriculture Magic
+                </span>
+              </ScrollReveal>
+              
+              <ScrollReveal delay={150} duration={850}>
+                <h2 className="text-3xl md:text-5xl font-black leading-tight tracking-tight text-white">
+                  The Magic of <span className="bg-gradient-to-r from-yellow-400 via-emerald-400 to-green-400 text-transparent bg-clip-text">Direct Commerce</span>
+                </h2>
+              </ScrollReveal>
+              
+              <ScrollReveal delay={200} duration={850}>
+                <p className="text-gray-300 text-base md:text-lg leading-relaxed font-medium">
+                  Why let slow, traditional supply chains weigh down your harvest? FarmConnect acts like a mystical spell, giving regional farmers total sovereignty over their produce. We eliminate the shadows of middleman brokers and illuminate direct paths to regional retailers.
+                </p>
+              </ScrollReveal>
+              
+              <div className="space-y-4 pt-2">
+                <ScrollReveal delay={250} duration={800} distance="20px">
+                  <div className="flex items-start space-x-3.5 group">
+                    <div className="w-10 h-10 rounded-xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform duration-300">
+                      ⚡
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-base">Sorcery of Speed</h4>
+                      <p className="text-gray-400 text-sm">Post harvests in seconds. Eliminate 2-3 delay layers instantly.</p>
+                    </div>
+                  </div>
+                </ScrollReveal>
+
+                <ScrollReveal delay={350} duration={800} distance="20px">
+                  <div className="flex items-start space-x-3.5 group">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300">
+                      🛡️
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-base">Mandala of Safety</h4>
+                      <p className="text-gray-400 text-sm">Every trade is guarded by secure online checkouts and verified reviews.</p>
+                    </div>
+                  </div>
+                </ScrollReveal>
+
+                <ScrollReveal delay={450} duration={800} distance="20px">
+                  <div className="flex items-start space-x-3.5 group">
+                    <div className="w-10 h-10 rounded-xl bg-green-500/15 border border-green-500/30 flex items-center justify-center text-green-400 group-hover:scale-110 transition-transform duration-300">
+                      🌾
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-base">Abundant Yields</h4>
+                      <p className="text-gray-400 text-sm">Connect with scores of authenticated buyers, boosting crop margins by 20-30%.</p>
+                    </div>
+                  </div>
+                </ScrollReveal>
+              </div>
+            </div>
+
+            {/* Marvel-style Agricultural Magic Circle Component */}
+            <div className="lg:col-span-6 flex justify-center items-center">
+              <ScrollReveal delay={200} duration={900} scale={0.95}>
+                <CropMagic />
+              </ScrollReveal>
+            </div>
+            
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
