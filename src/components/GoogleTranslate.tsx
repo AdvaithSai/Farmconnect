@@ -13,13 +13,19 @@ declare global {
       };
     };
     googleTranslateElementInit: () => void;
+    _farmconnectTranslateInitialized?: boolean;
   }
 }
 
 const GoogleTranslate = () => {
   useEffect(() => {
-    // Define the init callback Google's script will call
+    // Guard: only initialize once per page load
+    if (window._farmconnectTranslateInitialized) return;
+
+    // Define the callback Google's script will invoke after loading
     window.googleTranslateElementInit = () => {
+      if (window._farmconnectTranslateInitialized) return;
+      window._farmconnectTranslateInitialized = true;
       new window.google.translate.TranslateElement(
         {
           pageLanguage: 'en',
@@ -29,27 +35,24 @@ const GoogleTranslate = () => {
       );
     };
 
-    // If Google's script is already loaded, call init directly
+    // If Google Translate API already loaded, call init now
     if (window.google?.translate?.TranslateElement) {
       window.googleTranslateElementInit();
       return;
     }
 
-    // Otherwise dynamically load the script
-    const existing = document.querySelector(
-      'script[src*="translate.google.com"]'
-    );
-    if (!existing) {
+    // Otherwise inject the Google Translate script (only once)
+    const alreadyLoaded = document.querySelector('script[src*="translate.google.com/translate_a"]');
+    if (!alreadyLoaded) {
       const script = document.createElement('script');
-      script.src =
-        '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+      script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
       script.async = true;
       document.body.appendChild(script);
     }
   }, []);
 
   return (
-    <div className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-all duration-200 rounded-full px-3 py-1.5 border border-white/20 backdrop-blur-sm cursor-pointer">
+    <div className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-all duration-200 rounded-full px-3 py-1.5 border border-white/20 backdrop-blur-sm">
       {/* Globe icon */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -67,7 +70,7 @@ const GoogleTranslate = () => {
         <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
         <path d="M2 12h20" />
       </svg>
-      {/* Google Translate dropdown injected here after mount */}
+      {/* Google Translate widget injected here after mount */}
       <div id="google_translate_element" />
     </div>
   );
