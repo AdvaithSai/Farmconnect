@@ -97,63 +97,67 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen flex bg-gradient-to-br from-[#020d06] via-[#071d10] to-[#010804] text-white relative overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* Cinematic Ambient Glow Blobs */}
+      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-yellow-500/5 blur-[120px] pointer-events-none" />
+
       {isLoading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
           <ThemeLoader />
         </div>
       )}
 
       {/* ── Left brand panel ── */}
       <div
-        className="hidden lg:flex lg:w-2/5 flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: 'linear-gradient(145deg, #14532d 0%, #166534 40%, #15803d 100%)' }}
+        className="hidden lg:flex lg:w-2/5 flex-col justify-between p-12 relative overflow-hidden border-r border-white/5 bg-gradient-to-br from-green-950/20 via-emerald-950/10 to-black/40 backdrop-blur-lg"
       >
-        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #bbf7d0, transparent)' }} />
-        <div className="absolute -bottom-32 -right-20 w-80 h-80 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #fef08a, transparent)' }} />
+        {/* Decorative subtle circles */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full opacity-5 bg-gradient-to-br from-emerald-500 to-transparent blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-20 w-80 h-80 rounded-full opacity-5 bg-gradient-to-br from-yellow-500 to-transparent blur-3xl pointer-events-none" />
 
         {/* Logo */}
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur">
-              <Sprout size={22} className="text-green-200" />
+            <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center backdrop-blur shadow-lg">
+              <Sprout size={22} className="text-emerald-400" />
             </div>
-            <span className="text-white text-2xl font-bold tracking-tight">FarmConnect</span>
+            <span className="bg-gradient-to-r from-yellow-400 via-emerald-400 to-green-400 text-transparent bg-clip-text font-black text-2xl tracking-tight">FarmConnect</span>
           </div>
-          <p className="text-green-200 text-sm mt-2">India's agri marketplace</p>
+          <p className="text-gray-400 text-sm mt-2">India's agri marketplace</p>
         </div>
 
         {/* Role selector hint */}
         <div className="relative z-10 space-y-6">
           <div>
-            <h2 className="text-white text-3xl font-bold leading-tight mb-3">
+            <h2 className="text-white text-3xl font-extrabold leading-tight mb-3">
               Join as a<br />
-              <span className="text-yellow-300">Farmer or Retailer</span>
+              <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-transparent bg-clip-text">Farmer or Retailer</span>
             </h2>
-            <p className="text-green-200 text-sm leading-relaxed">
+            <p className="text-gray-300 text-sm leading-relaxed font-medium">
               Create your free account and start trading directly. No middlemen, transparent pricing.
             </p>
           </div>
 
           {/* Role cards */}
           <div className="space-y-3">
-            <div className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-md hover:border-yellow-400/20 transition-all duration-300">
               <div className="flex items-center gap-3 mb-2">
                 <span className="text-2xl">🚜</span>
-                <span className="text-white font-semibold">Farmer</span>
+                <span className="text-white font-bold text-sm">Farmer</span>
               </div>
-              <ul className="text-green-200 text-xs space-y-1">
+              <ul className="text-gray-300 text-xs space-y-1 font-medium">
                 <li>• List your crops with photos & pricing</li>
                 <li>• Receive & accept offers from retailers</li>
                 <li>• Get paid securely after delivery</li>
               </ul>
             </div>
-            <div className="bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-md hover:border-emerald-400/20 transition-all duration-300">
               <div className="flex items-center gap-3 mb-2">
                 <span className="text-2xl">🛍️</span>
-                <span className="text-white font-semibold">Retailer</span>
+                <span className="text-white font-bold text-sm">Retailer</span>
               </div>
-              <ul className="text-green-200 text-xs space-y-1">
+              <ul className="text-gray-300 text-xs space-y-1 font-medium">
                 <li>• Browse fresh crops from local farmers</li>
                 <li>• Negotiate prices through live chat</li>
                 <li>• Track deliveries in real-time</li>
@@ -162,25 +166,26 @@ const Register = () => {
           </div>
         </div>
 
-        <p className="relative z-10 text-green-300 text-xs">
+        <p className="relative z-10 text-gray-400 text-xs font-semibold">
           By signing up you agree to our Terms & Privacy Policy
         </p>
       </div>
 
       {/* ── Right form panel ── */}
-      <div className="flex-1 flex items-start lg:items-center justify-center bg-gray-50 p-6 lg:p-10 overflow-y-auto">
-        <div className="w-full max-w-md py-4">
+      <div className="flex-1 flex items-start lg:items-center justify-center p-6 lg:p-10 overflow-y-auto relative z-10">
+        <div className="w-full max-w-md bg-black/40 border border-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl relative py-6 my-4">
+          
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-6 lg:hidden">
-            <div className="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center">
-              <Sprout size={16} className="text-white" />
+            <div className="w-8 h-8 bg-emerald-500/10 border border-emerald-500/30 rounded-lg flex items-center justify-center">
+              <Sprout size={16} className="text-emerald-400" />
             </div>
-            <span className="text-green-800 text-xl font-bold">FarmConnect</span>
+            <span className="bg-gradient-to-r from-yellow-400 to-emerald-400 text-transparent bg-clip-text font-black text-xl">FarmConnect</span>
           </div>
 
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-1">Create account</h1>
-            <p className="text-gray-500 text-sm">Join thousands of farmers & retailers</p>
+            <h1 className="text-3xl font-black text-white mb-1 tracking-tight">Create account</h1>
+            <p className="text-gray-400 text-sm">Join thousands of farmers & retailers</p>
           </div>
 
           {/* Social buttons */}
@@ -189,7 +194,7 @@ const Register = () => {
               type="button"
               onClick={handleGoogleRegister}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium text-sm hover:border-green-400 hover:bg-green-50 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white font-semibold text-sm hover:border-yellow-400 hover:bg-white/10 transition-all duration-300 shadow-md disabled:opacity-50 active:scale-[0.98]"
             >
               <FcGoogle size={20} /> Continue with Google
             </button>
@@ -197,48 +202,48 @@ const Register = () => {
               type="button"
               onClick={handleFacebookRegister}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium text-sm hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white font-semibold text-sm hover:border-emerald-400 hover:bg-white/10 transition-all duration-300 shadow-md disabled:opacity-50 active:scale-[0.98]"
             >
-              <FaFacebook size={20} className="text-blue-600" /> Continue with Facebook
+              <FaFacebook size={20} className="text-blue-500" /> Continue with Facebook
             </button>
           </div>
 
           {/* Divider */}
           <div className="relative mb-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
+              <div className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-3 bg-gray-50 text-gray-400 font-medium uppercase tracking-widest">or register with email</span>
+              <span className="px-3 bg-[#04140b] rounded-full border border-white/5 text-gray-400 font-bold uppercase tracking-widest text-[10px]">or register with email</span>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name */}
             <div className="space-y-1">
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
+              <label htmlFor="name" className="block text-sm font-semibold text-gray-300">Full Name</label>
               <input
                 id="name" name="name" type="text" autoComplete="name" required
                 value={name} onChange={e => setName(e.target.value)} disabled={isLoading}
                 placeholder="Pranav Sharma"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all duration-200"
+                className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-300"
               />
             </div>
 
             {/* Email */}
             <div className="space-y-1">
-              <label htmlFor="email-address" className="block text-sm font-medium text-gray-700">Email address</label>
+              <label htmlFor="email-address" className="block text-sm font-semibold text-gray-300">Email address</label>
               <input
                 id="email-address" name="email" type="email" autoComplete="email" required
                 value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading}
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 transition-all duration-200"
+                className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-300"
               />
             </div>
 
             {/* Password */}
             <div className="space-y-1">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-300">Password</label>
               <div className="relative">
                 <input
                   id="password" name="password" type={showPassword ? 'text' : 'password'}
@@ -246,24 +251,24 @@ const Register = () => {
                   value={password} onChange={handlePasswordChange} disabled={isLoading}
                   onFocus={() => setPasswordFocused(true)} onBlur={() => setPasswordFocused(false)}
                   placeholder="Create a strong password"
-                  className={`w-full px-4 py-3 pr-12 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 transition-all duration-200 ${
-                    passwordError && password ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-green-500'
+                  className={`w-full px-4 py-3 pr-12 rounded-xl border text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all duration-300 ${
+                    passwordError && password ? 'border-red-500/50 bg-red-950/20 focus:border-red-500' : 'border-white/10 bg-white/5 focus:border-emerald-500'
                   }`}
                 />
                 <button type="button" onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white" tabIndex={-1}>
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
 
               {/* Password checklist */}
               {(passwordFocused || password) && (
-                <div className="bg-gray-100 rounded-xl p-3 mt-1 grid grid-cols-2 gap-1">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 mt-2 grid grid-cols-2 gap-2">
                   {passwordChecks.map((c, i) => (
-                    <div key={i} className={`flex items-center gap-1.5 text-xs ${c.valid ? 'text-green-600' : 'text-gray-400'}`}>
+                    <div key={i} className={`flex items-center gap-1.5 text-xs font-semibold ${c.valid ? 'text-emerald-400' : 'text-gray-500'}`}>
                       {c.valid
-                        ? <Check size={12} className="shrink-0" />
-                        : <X size={12} className="shrink-0" />}
+                        ? <Check size={12} className="shrink-0 text-emerald-400" />
+                        : <X size={12} className="shrink-0 text-gray-500" />}
                       {c.label}
                     </div>
                   ))}
@@ -273,37 +278,37 @@ const Register = () => {
 
             {/* Retype Password */}
             <div className="space-y-1">
-              <label htmlFor="retype-password" className="block text-sm font-medium text-gray-700">Confirm Password</label>
+              <label htmlFor="retype-password" className="block text-sm font-semibold text-gray-300">Confirm Password</label>
               <div className="relative">
                 <input
                   id="retype-password" name="retype-password" type={showRetype ? 'text' : 'password'}
                   autoComplete="new-password" required
                   value={retypePassword} onChange={handleRetypeChange} disabled={isLoading}
                   placeholder="Repeat your password"
-                  className={`w-full px-4 py-3 pr-12 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 transition-all duration-200 ${
-                    retypeError ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-green-500'
+                  className={`w-full px-4 py-3 pr-12 rounded-xl border text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all duration-300 ${
+                    retypeError ? 'border-red-500/50 bg-red-950/20 focus:border-red-500' : 'border-white/10 bg-white/5 focus:border-emerald-500'
                   }`}
                 />
                 <button type="button" onClick={() => setShowRetype(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" tabIndex={-1}>
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white" tabIndex={-1}>
                   {showRetype ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {retypeError && <p className="text-xs text-red-500 mt-1">{retypeError}</p>}
+              {retypeError && <p className="text-xs text-red-400 mt-1 font-semibold">{retypeError}</p>}
             </div>
 
             {/* Role selector */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">I am joining as</label>
+              <label className="block text-sm font-semibold text-gray-300">I am joining as</label>
               <div className="grid grid-cols-2 gap-3">
                 {(['farmer', 'retailer'] as const).map(r => (
                   <button
                     key={r} type="button"
                     onClick={() => setRole(r)}
-                    className={`py-3 px-4 rounded-xl border-2 font-medium text-sm transition-all duration-200 ${
+                    className={`py-3.5 px-4 rounded-xl border font-bold text-sm transition-all duration-300 active:scale-[0.98] ${
                       role === r
-                        ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-500 hover:border-green-300 hover:bg-green-50/50'
+                        ? 'border-yellow-400 bg-yellow-500/10 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.15)]'
+                        : 'border-white/10 bg-white/5 text-gray-400 hover:border-emerald-500/30 hover:bg-emerald-500/5 hover:text-emerald-400'
                     }`}
                   >
                     <span className="mr-1.5">{r === 'farmer' ? '🚜' : '🛍️'}</span>
@@ -316,15 +321,15 @@ const Register = () => {
             <button
               type="submit"
               disabled={isLoading || isFormInvalid || !name || !email}
-              className="w-full py-3 px-4 rounded-xl bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold text-sm transition-all duration-200 shadow-md hover:shadow-lg disabled:bg-green-300 disabled:cursor-not-allowed"
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-black text-sm transition-all duration-300 shadow-lg hover:shadow-emerald-500/10 active:scale-[0.98] disabled:from-gray-700 disabled:to-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Creating account…' : 'Create account'}
             </button>
           </form>
 
-          <p className="mt-5 text-center text-sm text-gray-500">
+          <p className="mt-5 text-center text-sm text-gray-400">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-green-600 hover:text-green-700">Sign in</Link>
+            <Link to="/login" className="font-extrabold text-yellow-400 hover:text-yellow-300 transition-colors">Sign in</Link>
           </p>
         </div>
       </div>
