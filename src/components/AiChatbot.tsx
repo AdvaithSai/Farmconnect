@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAppStore } from '../lib/store';
 import { MessageSquare, X, Send, AlertCircle, CheckCircle, HelpCircle, ShieldAlert } from 'lucide-react';
 import { retrieveRAGContext } from '../lib/chatbotKnowledge';
@@ -28,13 +29,21 @@ const AiChatbot = () => {
   const [ticketId, setTicketId] = useState('');
 
   const { user } = useAppStore();
+  const location = useLocation();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize with greeting
+  // Initialize with greeting tailored by user role and current situation
   useEffect(() => {
-    const greetingText = user 
-      ? `Hello ${user.name}! I am your FarmConnect RAG AI Assistant. How can I help you manage your ${user.role} operations today? Ask me about listings, bids, security, or tracking!`
-      : `Hello! I am your FarmConnect RAG AI Assistant. How can I help you explore India's trusted direct agri-marketplace today?`;
+    let greetingText = '';
+    const role = (user?.role || 'guest').toLowerCase();
+    
+    if (role === 'farmer') {
+      greetingText = `Namaste ${user?.name}! I am Ramu, your FarmConnect AI Assistant. 🌾 As a Farmer, I can guide you on listing crops, reviewing retailer bids, negotiating price, or streaming live GPS tracking during shipping. How can I help you today?`;
+    } else if (role === 'retailer') {
+      greetingText = `Hello ${user?.name}! I am Ramu, your FarmConnect AI Assistant. 🛍️ As a Retailer, I can guide you on browsing listings, making offers/bids, tracking offers, and paying securely via Razorpay escrow. How can I assist you in securing high-quality crops?`;
+    } else {
+      greetingText = `Hello! I am Ramu, your FarmConnect AI Assistant. 🤝 How can I help you explore India's direct farm-to-retail marketplace today?`;
+    }
       
     setMessages([
       {
@@ -75,8 +84,10 @@ const AiChatbot = () => {
 
     setIsTyping(true);
 
-    // Retrieve RAG Context
-    const ragContext = retrieveRAGContext(userText);
+    // Retrieve RAG Context scoped strictly to active role and current page path
+    const activeRole = user?.role || 'guest';
+    const activePath = location.pathname;
+    const ragContext = retrieveRAGContext(userText, activeRole, activePath);
 
     // Simulate thinking/retrieval time
     setTimeout(async () => {
@@ -91,7 +102,8 @@ const AiChatbot = () => {
             query: userText,
             context: ragContext,
             userName: user?.name || 'Guest',
-            userRole: user?.role || 'guest'
+            userRole: activeRole,
+            currentPath: activePath
           })
         });
         const data = await response.json();
@@ -99,17 +111,23 @@ const AiChatbot = () => {
           botReply = data.reply;
         }
       } catch (err) {
-        console.log("Vite dev node-server fallback, launching semantic NLP processor...");
+        console.log("Vite dev node-server fallback, launching situational NLP processor...");
       }
 
       // Semantic Local RAG Solver fallback if backend key is missing or offline
       if (!botReply) {
-        if (ragContext.startsWith('Baseline info:')) {
-          botReply = `I understand you're asking about that! FarmConnect is an advanced farmer-to-retailer direct marketplace built on secure payment systems and verified profiles. Can you please describe your query in a bit more detail (e.g. asking about "crop listings", "bids", "payment", or "delivery tracking") so I can extract the specific guidelines from our database?`;
+        if (ragContext.includes('Baseline info:')) {
+          if (activeRole === 'farmer') {
+            botReply = `Namaste! I am Ramu. As a Farmer, I can guide you on crop listing, reviewing bids under "Manage Offers", or streaming live GPS coordinates during delivery. Please ask me specifically about these farmer actions!`;
+          } else if (activeRole === 'retailer') {
+            botReply = `Hello! I am Ramu. As a Retailer, I can assist you with browsing fresh listings, placing bids, managing your placed bids in "My Offers", or paying securely through Razorpay escrow. What can I do for you?`;
+          } else {
+            botReply = `Hi! I am Ramu. FarmConnect is a secure direct platform linking farmers and retailers. Are you interested in listing crops, making custom bids, secure payments, or tracking shipments? Let me know!`;
+          }
         } else {
           // Clean up formatting of RAG text to present beautifully
           const cleanContext = ragContext.replace(/\[Document:.*?\]/g, '•');
-          botReply = `According to the official FarmConnect RAG documentation:\n\n${cleanContext}\n\nI hope this resolves your query! Is there anything else I can guide you on?`;
+          botReply = `Hi! I am Ramu. Based on your current page and role, here are the official FarmConnect guidelines:\n\n${cleanContext}\n\nI hope this clarifies your query! Let me know if you need any other guidance.`;
         }
       }
 
@@ -136,7 +154,7 @@ const AiChatbot = () => {
             {
               id: Math.random().toString(),
               sender: 'system',
-              text: `⚠️ I have detected a potentially high-priority issue regarding your transaction or platform security. For your safety, I can escalate this directly to the FarmConnect Administrator Team.`,
+              text: `⚠️ Namaste, I am Ramu. I have detected a potentially high-priority issue regarding your transaction or platform security. For your safety, I can escalate this directly to the FarmConnect Administrator Team right now.`,
               timestamp: new Date(),
               escalateButton: true
             }
@@ -181,7 +199,7 @@ const AiChatbot = () => {
         {
           id: Math.random().toString(),
           sender: 'system',
-          text: `✅ Success! Ticket #${ticketRef.id.slice(0, 8).toUpperCase()} has been created. An administrator will review your case details and contact you directly on priority.`,
+          text: `✅ Success! Support Ticket #${ticketRef.id.slice(0, 8).toUpperCase()} has been generated. An administrator will review your case details and contact you directly on priority.`,
           timestamp: new Date()
         }
       ]);
@@ -222,9 +240,9 @@ const AiChatbot = () => {
                 <HelpCircle size={18} className="text-black font-bold animate-pulse" />
               </div>
               <div>
-                <h3 className="text-sm font-black bg-gradient-to-r from-yellow-400 via-emerald-400 to-green-400 text-transparent bg-clip-text">FarmConnect AI Helper</h3>
+                <h3 className="text-sm font-black bg-gradient-to-r from-yellow-400 via-emerald-400 to-green-400 text-transparent bg-clip-text">Ramu (AI Support)</h3>
                 <span className="text-[10px] text-gray-400 flex items-center gap-1 font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> RAG Knowledge Active
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Situational RAG Active
                 </span>
               </div>
             </div>
@@ -354,7 +372,7 @@ const AiChatbot = () => {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 disabled={isTyping}
-                placeholder="Ask me how to negotiate, pay, or list..."
+                placeholder="Ask Ramu anything..."
                 className="flex-1 px-4 py-2.5 rounded-xl border border-white/10 bg-black/40 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all duration-300"
               />
               <button
