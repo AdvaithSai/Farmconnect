@@ -237,6 +237,61 @@ app.post('/acknowledge-delivery', async (req, res) => {
   }
 });
 
+// ─── AI Chatbot RAG Route ───────────────────────────────────────────────────
+app.post('/api/ai-chat', async (req, res) => {
+  const { query, context, userName, userRole } = req.body;
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    return res.json({ 
+      success: false, 
+      error: 'GEMINI_API_KEY is not configured on the server, using high-fidelity local RAG processing.' 
+    });
+  }
+
+  const systemInstruction = `You are the FarmConnect AI Assistant, a friendly customer helper trained on the website.
+Use the following retrieved context documents to answer the user's questions accurately.
+If the retrieved context does not contain enough info, or the question is unrelated to the website, politely explain that you are specialized in FarmConnect direct commerce topics.
+
+Retrieved Website Context:
+${context}
+
+User Information:
+Name: ${userName}
+Role: ${userRole}
+
+Answer the query professionally. Be concise and keep formatting clear.`;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: systemInstruction },
+              { text: `User Question: ${query}` }
+            ]
+          }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+      const reply = data.candidates[0].content.parts[0].text;
+      res.json({ success: true, reply });
+    } else {
+      console.error('Gemini API Error Response:', data);
+      res.json({ success: false, error: 'Empty or invalid response from Gemini API' });
+    }
+  } catch (err) {
+    console.error('Failed to query Gemini API:', err);
+    res.json({ success: false, error: err.message });
+  }
+});
+
 // ─── Start Server ─────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;

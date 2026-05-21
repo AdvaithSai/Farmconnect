@@ -3,6 +3,8 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, LogOut, User, Wheat, ArrowLeft, LayoutDashboard, PlusCircle, History } from 'lucide-react';
 import { useAppStore } from '../lib/store';
 import GoogleTranslate from '../components/GoogleTranslate';
+import AiChatbot from '../components/AiChatbot';
+
 
 const MainLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -391,6 +393,7 @@ const MainLayout = () => {
           </div>
         </div>
       </footer>
+      <AiChatbot />
     </div>
   );
 };
