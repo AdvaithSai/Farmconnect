@@ -4,15 +4,20 @@
 
 /* ─── Google Translate Widget – Polished Navbar Style ─────────────────────── */
 
-/* Wrapper injected by Google — remove the "Powered by" text size */
+/* Wrapper injected by Google */
 #google_translate_element .goog-te-gadget {
-  color: transparent !important;
+  color: transparent !important; /* Hide "Powered by" text */
   font-size: 0 !important;
   line-height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
   display: flex !important;
   align-items: center !important;
+}
+
+/* Ensure the span container for the select is visible and flexible */
+#google_translate_element .goog-te-gadget > span {
+  display: inline-block !important;
 }
 
 /* The <select> dropdown — fully transparent, white text, no border */
@@ -25,20 +30,20 @@
   font-family: inherit !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  padding: 0 18px 0 2px !important;
+  padding: 2px 18px 2px 4px !important;
   margin: 0 !important;
   cursor: pointer !important;
   /* Hide OS default arrow and replace with our SVG chevron */
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.8)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.9)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 2px center !important;
-  max-width: 130px !important;
+  max-width: 140px !important;
 }
 
-/* Dropdown option items */
+/* Dropdown option items styling */
 #google_translate_element .goog-te-gadget .goog-te-combo option {
   background-color: #166534 !important;
   color: white !important;
@@ -47,12 +52,12 @@
 
 /* Hide the Google logo inside the gadget */
 #google_translate_element .goog-te-gadget-icon,
-#google_translate_element img {
+#google_translate_element img,
+#google_translate_element .goog-logo-link {
   display: none !important;
 }
 
-/* Hide the "Powered by Google" and translate attribution links */
-#google_translate_element .goog-te-gadget > span,
+/* Hide translate attribution links */
 #google_translate_element .goog-te-gadget a {
   display: none !important;
 }
@@ -60,7 +65,8 @@
 /* ─── Global Google banners & popups — remove completely ──────────────────── */
 .goog-te-banner-frame,
 .goog-te-balloon-frame,
-.goog-te-menu-frame {
+.goog-te-menu-frame,
+.goog-te-banner {
   display: none !important;
   height: 0 !important;
   visibility: hidden !important;

@@ -184,6 +184,9 @@ const MainLayout = () => {
               </div>
             ) : (
               <div className="flex flex-col space-y-4">
+                <div className="mb-2 max-w-[150px]">
+                  <GoogleTranslate />
+                </div>
                 <Link 
                   to="/login" 
                   className="hover:text-yellow-200 transition-colors"

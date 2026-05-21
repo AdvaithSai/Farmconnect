@@ -5,49 +5,46 @@ declare global {
     google: {
       translate: {
         TranslateElement: {
-          new (options: { pageLanguage: string; layout: number }, elementId: string): void;
-          InlineLayout: {
+          new (options: { pageLanguage: string; layout?: number }, elementId: string): void;
+          InlineLayout?: {
             SIMPLE: number;
           };
         };
       };
     };
     googleTranslateElementInit: () => void;
-    _farmconnectTranslateInitialized?: boolean;
   }
 }
 
 const GoogleTranslate = () => {
   useEffect(() => {
-    // Guard: only initialize once per page load
-    if (window._farmconnectTranslateInitialized) return;
-
     // Define the callback Google's script will invoke after loading
     window.googleTranslateElementInit = () => {
-      if (window._farmconnectTranslateInitialized) return;
-      window._farmconnectTranslateInitialized = true;
-      new window.google.translate.TranslateElement(
-        {
-          pageLanguage: 'en',
-          layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
-        },
-        'google_translate_element'
-      );
+      const container = document.getElementById('google_translate_element');
+      if (container && container.children.length === 0) {
+        new window.google.translate.TranslateElement(
+          {
+            pageLanguage: 'en',
+            // Do not use SIMPLE layout so it renders the native <select class="goog-te-combo"> dropdown,
+            // which matches our CSS styles perfectly and is highly responsive and interactive.
+          },
+          'google_translate_element'
+        );
+      }
     };
 
-    // If Google Translate API already loaded, call init now
+    // If Google Translate API is already loaded, initialize immediately
     if (window.google?.translate?.TranslateElement) {
       window.googleTranslateElementInit();
-      return;
-    }
-
-    // Otherwise inject the Google Translate script (only once)
-    const alreadyLoaded = document.querySelector('script[src*="translate.google.com/translate_a"]');
-    if (!alreadyLoaded) {
-      const script = document.createElement('script');
-      script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-      script.async = true;
-      document.body.appendChild(script);
+    } else {
+      // Otherwise inject the Google Translate script (only if not already in document)
+      const alreadyLoaded = document.querySelector('script[src*="translate.google.com/translate_a"]');
+      if (!alreadyLoaded) {
+        const script = document.createElement('script');
+        script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+        script.async = true;
+        document.body.appendChild(script);
+      }
     }
   }, []);
 
@@ -71,7 +68,7 @@ const GoogleTranslate = () => {
         <path d="M2 12h20" />
       </svg>
       {/* Google Translate widget injected here after mount */}
-      <div id="google_translate_element" />
+      <div id="google_translate_element" className="flex items-center" />
     </div>
   );
 };
