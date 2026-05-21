@@ -6,6 +6,8 @@ import { useAppStore } from '../../lib/store';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
 // Mock payment method data (in a real app, this would come from a payment processor)
 const paymentMethods = [
   { id: 'card', name: 'Credit/Debit Card', icon: CreditCard },
@@ -114,7 +116,7 @@ const Checkout = () => {
     setIsProcessing(true);
     try {
       // Fetch Razorpay Key ID from backend
-      const keyRes = await fetch('http://localhost:3000/razorpay-key');
+      const keyRes = await fetch(`${BACKEND_URL}/razorpay-key`);
       if (!keyRes.ok) {
         toast.error('Failed to connect to payment server. Please ensure the backend is running.');
         setIsProcessing(false);
@@ -130,7 +132,7 @@ const Checkout = () => {
 
       const totalAmount = offer.price * offer.crops.quantity;
 
-      const res = await fetch('http://localhost:3000/create-order', {
+      const res = await fetch(`${BACKEND_URL}/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -155,7 +157,7 @@ const Checkout = () => {
         handler: async function (response: RazorpayResponse) {
           try {
             // Mark transaction as completed
-            const txnRes = await fetch('http://localhost:3000/mark-transaction-completed', {
+            const txnRes = await fetch(`${BACKEND_URL}/mark-transaction-completed`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ transactionId: offer.id }),
@@ -166,7 +168,7 @@ const Checkout = () => {
             }
             
             // Mark crop as sold
-            const cropRes = await fetch('http://localhost:3000/mark-crop-sold', {
+            const cropRes = await fetch(`${BACKEND_URL}/mark-crop-sold`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ cropId: offer.crop_id }),

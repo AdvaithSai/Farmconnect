@@ -6,6 +6,8 @@ import { doc, setDoc, collection, query, where, orderBy, onSnapshot, updateDoc, 
 import { db } from '../lib/firebase';
 import LocationTracker from './LocationTracker';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
 // Declare Razorpay types for TypeScript (single, global declaration)
 declare global {
   interface Window {
@@ -50,7 +52,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
   const [showLocationTracker, setShowLocationTracker] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { user, sendMessage, updateOfferPrice, currentChat, userOffers } = useAppStore();
+  const { user, sendMessage, updateOfferPrice, currentChat, userOffers, crops } = useAppStore();
 
   // Real-time listener for messages in this chat
   useEffect(() => {
@@ -207,8 +209,13 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
   // Razorpay payment handler
   const handlePayNow = async (offer: { id: string; price: number }) => {
     try {
+      // Find the crop to calculate the total amount
+      const crop = crops.find(c => c.id === currentChat?.crop_id);
+      const quantity = crop?.quantity || 1;
+      const totalAmount = offer.price * quantity;
+
       // Fetch Razorpay Key ID from backend
-      const keyRes = await fetch('http://localhost:3000/razorpay-key');
+      const keyRes = await fetch(`${BACKEND_URL}/razorpay-key`);
       if (!keyRes.ok) {
         console.error('Failed to get Razorpay key with status:', keyRes.status);
         toast.error('Failed to connect to payment server. Please ensure the backend is running.');
@@ -225,11 +232,11 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       
       const keyId = keyData.key;
 
-      const res = await fetch('http://localhost:3000/create-order', {
+      const res = await fetch(`${BACKEND_URL}/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: offer.price,
+          amount: totalAmount,
           receipt: offer.id,
         }),
       });
@@ -270,7 +277,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
             }
             
             // Mark transaction as completed
-            const txnRes = await fetch('http://localhost:3000/mark-transaction-completed', {
+            const txnRes = await fetch(`${BACKEND_URL}/mark-transaction-completed`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ transactionId: currentOffer.id }),
@@ -281,7 +288,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
             }
             
             // Mark crop as sold
-            const cropRes = await fetch('http://localhost:3000/mark-crop-sold', {
+            const cropRes = await fetch(`${BACKEND_URL}/mark-crop-sold`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ cropId: currentOffer.crop_id }),
@@ -518,13 +525,16 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
               const offers = useAppStore.getState().userOffers;
               const offer = offers.find(o => o.crop_id === cropId && o.retailer_id === retailerId && o.status === 'accepted');
               if (offer) {
+                const crop = crops.find(c => c.id === cropId);
+                const quantity = crop?.quantity || 1;
+                const totalAmount = offer.price * quantity;
                 return (
                   <button
                     className="w-full py-3 px-6 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center space-x-2 border border-yellow-300"
                     onClick={() => handlePayNow(offer)}
                   >
                     <CheckCheck size={20} />
-                    <span>Pay ₹{offer.price} Now</span>
+                    <span>Pay ₹{totalAmount.toFixed(2)} Now</span>
                   </button>
                 );
               }

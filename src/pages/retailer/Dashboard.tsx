@@ -7,6 +7,8 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import ThemeLoader from '../../components/ThemeLoader';
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+
 type Transaction = {
   id: string;
   crop_id: string;
@@ -118,7 +120,7 @@ const RetailerDashboard = () => {
   const handlePayNow = async (offer: { id: string; price: number; crop_id: string }) => {
     try {
       // Fetch Razorpay Key ID dynamically from backend (never hardcode keys)
-      const keyRes = await fetch('http://localhost:3000/razorpay-key');
+      const keyRes = await fetch(`${BACKEND_URL}/razorpay-key`);
       if (!keyRes.ok) {
         toast.error('Failed to connect to payment server. Please ensure the backend is running.');
         return;
@@ -134,7 +136,7 @@ const RetailerDashboard = () => {
       const quantity = cropQuantities[offer.crop_id] || 1;
       const totalPrice = offer.price * quantity;
 
-      const res = await fetch('http://localhost:3000/create-order', {
+      const res = await fetch(`${BACKEND_URL}/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -161,12 +163,12 @@ const RetailerDashboard = () => {
             // Find the transaction for this offer
             const pendingTxn = transactions.find(t => t.offer_id === offer.id && t.status === 'pending_payment');
             if (pendingTxn) {
-              await fetch('http://localhost:3000/mark-transaction-completed', {
+              await fetch(`${BACKEND_URL}/mark-transaction-completed`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ transactionId: pendingTxn.id }),
               });
-              await fetch('http://localhost:3000/mark-crop-sold', {
+              await fetch(`${BACKEND_URL}/mark-crop-sold`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cropId: pendingTxn.crop_id }),

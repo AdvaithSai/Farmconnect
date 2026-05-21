@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev:frontend": "vite",
-    "dev:backend": "cd otp-backend && node index.js",
+    "dev:backend": "node otp-backend/index.js",
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "postinstall": "npm install --prefix otp-backend",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

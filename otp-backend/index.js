@@ -3,7 +3,8 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 const admin = require('firebase-admin');
 const Razorpay = require('razorpay');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 app.use(cors());
@@ -26,7 +27,7 @@ const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
+    pass: (process.env.GMAIL_PASS || '').replace(/\s+/g, ''),
   },
 });
 
