@@ -24,7 +24,6 @@ const MainLayout = () => {
               <Wheat size={28} />
               <span className="text-xl font-bold">FarmConnect</span>
             </Link>
-            <GoogleTranslate />
           </div>
           
           {/* Desktop Navigation */}
@@ -60,6 +59,7 @@ const MainLayout = () => {
                 
                 {/* User Menu */}
                 <div className="flex items-center space-x-4">
+                  <GoogleTranslate />
                   <button 
                     onClick={() => navigate('/profile')}
                     className="flex items-center space-x-2 hover:text-yellow-200 transition-colors cursor-pointer"
@@ -77,6 +77,7 @@ const MainLayout = () => {
               </>
             ) : (
               <div className="flex items-center space-x-4">
+                <GoogleTranslate />
                 <Link 
                   to="/login" 
                   className="px-4 py-2 bg-yellow-500 text-green-900 font-medium rounded-md hover:bg-yellow-400 transition-colors"
@@ -156,6 +157,9 @@ const MainLayout = () => {
                 
                 {/* User Menu */}
                 <div className="pt-4 border-t border-green-600">
+                  <div className="mb-4">
+                    <GoogleTranslate />
+                  </div>
                   <button 
                     onClick={() => {
                       navigate('/profile');

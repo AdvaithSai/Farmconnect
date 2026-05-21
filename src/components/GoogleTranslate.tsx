@@ -15,16 +15,28 @@ declare global {
 
 const GoogleTranslate = () => {
   return (
-    <div 
-      id="google_translate_element" 
-      className="inline-block bg-green-600 hover:bg-green-500 transition-colors rounded-md border border-green-500"
-      style={{ 
-        minHeight: 0,
-        minWidth: 0,
-        padding: 0
-      }}
-    />
+    <div className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-all duration-200 rounded-full px-3 py-1.5 border border-white/20 backdrop-blur-sm">
+      {/* Globe icon */}
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-white/90 flex-shrink-0"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+        <path d="M2 12h20" />
+      </svg>
+      {/* Google Translate dropdown gets injected here */}
+      <div id="google_translate_element" className="translate-widget-container" />
+    </div>
   );
 };
 
-export default GoogleTranslate; 
+export default GoogleTranslate;
