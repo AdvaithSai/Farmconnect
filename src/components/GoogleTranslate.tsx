@@ -25,8 +25,6 @@ const GoogleTranslate = () => {
         new window.google.translate.TranslateElement(
           {
             pageLanguage: 'en',
-            // Do not use SIMPLE layout so it renders the native <select class="goog-te-combo"> dropdown,
-            // which matches our CSS styles perfectly and is highly responsive and interactive.
           },
           'google_translate_element'
         );
@@ -37,7 +35,7 @@ const GoogleTranslate = () => {
     if (window.google?.translate?.TranslateElement) {
       window.googleTranslateElementInit();
     } else {
-      // Otherwise inject the Google Translate script (only if not already in document)
+      // Otherwise inject the Google Translate script
       const alreadyLoaded = document.querySelector('script[src*="translate.google.com/translate_a"]');
       if (!alreadyLoaded) {
         const script = document.createElement('script');
@@ -49,8 +47,8 @@ const GoogleTranslate = () => {
   }, []);
 
   return (
-    <div className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 transition-all duration-200 rounded-full px-3 py-1.5 border border-white/20 backdrop-blur-sm">
-      {/* Globe icon */}
+    <div className="relative flex items-center bg-white/10 hover:bg-white/20 transition-all duration-200 rounded-full pl-3 pr-2 border border-white/20 backdrop-blur-sm w-[135px] h-[34px] cursor-pointer overflow-hidden">
+      {/* Globe icon — positioned on the left and visual-only */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="15"
@@ -61,14 +59,14 @@ const GoogleTranslate = () => {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-white/90 flex-shrink-0 pointer-events-none"
+        className="text-white/90 flex-shrink-0 pointer-events-none z-10 mr-1"
       >
         <circle cx="12" cy="12" r="10" />
         <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
         <path d="M2 12h20" />
       </svg>
-      {/* Google Translate widget injected here after mount */}
-      <div id="google_translate_element" className="flex items-center" />
+      {/* Google Translate dropdown overlayed over the entire pill button */}
+      <div id="google_translate_element" className="absolute inset-0 w-full h-full z-20" />
     </div>
   );
 };
