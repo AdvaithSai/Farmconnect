@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, User, Wheat } from 'lucide-react';
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Menu, X, LogOut, User, Wheat, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '../lib/store';
 import GoogleTranslate from '../components/GoogleTranslate';
 
@@ -8,6 +8,9 @@ const MainLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout } = useAppStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  const isRootPath = location.pathname === '/';
   
   const handleLogout = async () => {
     await logout();
@@ -20,6 +23,15 @@ const MainLayout = () => {
       <header className="bg-green-700 text-white shadow-md">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
+            {!isRootPath && (
+              <button 
+                onClick={() => navigate(-1)}
+                className="mr-1 flex items-center justify-center p-1.5 rounded-full hover:bg-green-800 transition-colors duration-200 text-white hover:text-yellow-200 cursor-pointer"
+                title="Go back to previous page"
+              >
+                <ArrowLeft size={20} />
+              </button>
+            )}
             <Link to="/" className="flex items-center space-x-2">
               <Wheat size={28} />
               <span className="text-xl font-bold">FarmConnect</span>
