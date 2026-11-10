@@ -25,6 +25,7 @@ export interface Review {
 
 interface AppState {
   user: User | null;
+  authReady: boolean; // false until Firebase has reported whether a session exists
   loading: boolean;
   crops: Crop[];
   userOffers: Offer[];
@@ -78,6 +79,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   user: null,
+  authReady: false,
   loading: false,
   crops: [],
   userOffers: [],
@@ -405,6 +407,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       const existingOfferQuery = query(offersCol, where('crop_id', '==', crop_id), where('retailer_id', '==', user.id));
       const existingOfferSnap = await getDocs(existingOfferQuery);
       if (!existingOfferSnap.empty) {
+        const existing = existingOfferSnap.docs[0];
+        // A rejected offer can be re-submitted at a new price
+        if (existing.data().status === 'rejected') {
+          return get().updateOfferPrice(existing.id, price);
+        }
         return { error: new Error('You have already made an offer for this crop.'), offer: null };
       }
       const newOffer = {
@@ -464,6 +471,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       if (offerData.status === 'completed') {
         return { error: new Error('Cannot update offer that is already completed'), offer: null };
+      }
+      // Re-pricing an accepted offer would silently undo the deal the farmer agreed to
+      if (offerData.status === 'accepted') {
+        return { error: new Error('This offer has already been accepted and its price can no longer be changed.'), offer: null };
       }
       
       // Update the offer price and set status back to pending
@@ -580,6 +591,9 @@ export const useAppStore = create<AppState>((set, get) => ({
          created_at: new Date().toISOString(),
        };
        const docRef = await addDoc(collection(db, 'messages'), newMessage);
+       // Keep the chat list's "last message" time current; the message itself is already sent
+       await setDoc(doc(db, 'chats', chatId), { last_message_at: newMessage.created_at }, { merge: true })
+         .catch(err => console.error('Failed to update chat timestamp:', err));
        const createdMessage = { id: docRef.id, ...newMessage };
        set({ messages: [...get().messages, createdMessage] });
        return { error: null, message: createdMessage };
@@ -736,3 +750,22 @@ export async function globalFetchCrops() {
     await store.fetchCrops();
   }
 }
+
+// Restore the signed-in user after a page reload. Firebase keeps the session,
+// but the profile has to be read back into the store.
+onAuthStateChanged(auth, async (firebaseUser) => {
+  if (!firebaseUser) {
+    useAppStore.setState({ user: null, authReady: true });
+    return;
+  }
+  try {
+    const profile = await getDoc(doc(db, 'users', firebaseUser.uid));
+    // While registering, the profile is written just after sign-in and
+    // register() sets the user itself, so a missing profile is left alone.
+    if (profile.exists()) useAppStore.setState({ user: profile.data() as User });
+  } catch (error) {
+    console.error('Failed to restore session:', error);
+  } finally {
+    useAppStore.setState({ authReady: true });
+  }
+});

@@ -157,11 +157,12 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({
         
         // Update location in Firestore
         try {
+          // No status here: this callback keeps the status from when sharing
+          // started and would overwrite 'delivered' with 'in_transit'.
           const updateData: any = {
             farmerId,
             retailerId,
-            offerId,
-            status: deliveryStatus
+            offerId
           };
           
           if (isFarmer) {

@@ -62,7 +62,7 @@ const CropDetails = () => {
       setIsLoading(true);
       try {
         // Fetch crop by ID from Firestore
-        const { doc, getDoc } = await import('firebase/firestore');
+        const { doc, getDoc, collection, query, where, getDocs } = await import('firebase/firestore');
         const { db } = await import('../../lib/firebase');
         const cropDoc = await getDoc(doc(db, 'crops', id));
         if (!cropDoc.exists()) {
@@ -85,7 +85,17 @@ const CropDetails = () => {
           id: cropDoc.id,
           farmers: farmer,
         } as CropWithFarmer);
-        
+
+        // Load the offer this retailer has already made on this crop, if any
+        if (user) {
+          const offerSnap = await getDocs(
+            query(collection(db, 'offers'), where('crop_id', '==', id), where('retailer_id', '==', user.id))
+          );
+          setExistingOffer(
+            offerSnap.empty ? null : ({ id: offerSnap.docs[0].id, ...offerSnap.docs[0].data() } as OfferRow)
+          );
+        }
+
         if (farmer) {
           const rating = await getUserRating(farmer.id);
           setFarmerRating(rating);
@@ -276,7 +286,8 @@ const CropDetails = () => {
             
             {/* Action Section */}
             <div className="mt-8 pt-6 border-t border-gray-200">
-              {existingOffer ? (
+              {/* A rejected offer falls through to the form so the retailer can offer again */}
+              {existingOffer && existingOffer.status !== 'rejected' ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                   <h3 className="text-lg font-medium text-yellow-800 mb-2">Your Offer</h3>
                   <p className="text-yellow-700 mb-2">

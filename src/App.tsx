@@ -32,13 +32,19 @@ const ProtectedRoute = ({
   requiredRole?: 'farmer' | 'retailer' 
 }) => {
   const user = useAppStore(state => state.user);
+  const authReady = useAppStore(state => state.authReady);
+  
+  // Wait for the saved session to be restored before deciding to redirect
+  if (!authReady) {
+    return null;
+  }
   
   if (!user) {
     return <Navigate to="/login" replace />;
   }
   
   if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to="/\" replace />;
+    return <Navigate to="/" replace />;
   }
   
   return children;

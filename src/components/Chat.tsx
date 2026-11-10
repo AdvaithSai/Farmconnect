@@ -168,7 +168,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       // Call updateOfferPrice
       const { error } = await updateOfferPrice(offerId, priceValue);
       if (error) {
-        toast.error('Failed to update offer price');
+        toast.error(error instanceof Error ? error.message : 'Failed to update offer price');
       } else {
         toast.success('Price updated and farmer notified!');
         setPrice('');
@@ -196,11 +196,11 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
     if (!isOwnMessage(msg.sender_id)) return null;
     // const otherUserId = user?.role === 'farmer' ? msg.chat_id.split('_')[1] : msg.chat_id.split('_')[0];
     // If all recipients have read
-    if (msg.readBy && msg.readBy.length > 1) {
+    if (msg.readBy?.some(id => id !== user?.id)) {
       return <CheckCheck size={16} className="inline ml-1 text-blue-500" />;
     }
     // If delivered to recipient
-    if (msg.deliveredTo && msg.deliveredTo.length > 1) {
+    if (msg.deliveredTo?.some(id => id !== user?.id)) {
       return <CheckCheck size={16} className="inline ml-1 text-gray-500" />;
     }
     // Sent only
@@ -366,6 +366,10 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
     }
   }, [currentChat, user, userOffers]);
 
+  const acceptedOffer = userOffers.find(
+    o => o.crop_id === currentChat?.crop_id && o.retailer_id === user?.id && o.status === 'accepted'
+  );
+
   return (
     <div className="flex flex-col h-full min-h-0 bg-transparent rounded-2xl pb-2 relative">
       {/* Chat Header */}
@@ -482,9 +486,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
           <div className="w-full flex flex-col space-y-2">
             {(() => {
               const cropId = currentChat?.crop_id;
-              const retailerId = user.id;
-              const offers = useAppStore.getState().userOffers;
-              const offer = offers.find(o => o.crop_id === cropId && o.retailer_id === retailerId && o.status === 'accepted');
+              const offer = acceptedOffer;
               if (offer) {
                 const crop = crops.find(c => c.id === cropId);
                 const quantity = crop?.quantity || 1;
@@ -501,6 +503,8 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
               }
               return null;
             })()}
+            {/* Once the farmer has accepted, the price is fixed: only payment is offered */}
+            {!acceptedOffer && (
             <form onSubmit={handleSendPrice} className="w-full flex space-x-2">
               <input
                 type="number"
@@ -520,6 +524,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
                 {isPriceLoading ? '...' : 'Propose'}
               </button>
             </form>
+            )}
           </div>
         )}
 
