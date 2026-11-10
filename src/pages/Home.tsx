@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../lib/store';
-import { ShoppingBag, Tractor, Wheat, TrendingUp, BarChart3, HandCoins } from 'lucide-react';
+import { ShoppingBag, Tractor, Wheat, TrendingUp, BarChart3, HandCoins, Check, Zap, ShieldCheck, Wand2 } from 'lucide-react';
 import ScrollSlider from '../components/ScrollSlider';
 import ScrollReveal from '../components/ScrollReveal';
 import CropMagic from '../components/CropMagic';
@@ -119,19 +119,19 @@ const Home = () => {
                 <h3 className="text-2xl font-bold mb-4 text-gray-900">Key Benefits</h3>
                 <ul className="space-y-4 text-gray-600 font-medium">
                   <li className="flex items-start">
-                    <span className="text-green-600 mr-3">✔</span>
+                    <Check size={18} aria-hidden="true" className="text-green-600 mr-3 mt-0.5 shrink-0" />
                     <span>Direct commerce raises farmer margins by 20-30%.</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-green-600 mr-3">✔</span>
+                    <Check size={18} aria-hidden="true" className="text-green-600 mr-3 mt-0.5 shrink-0" />
                     <span>Dramatically decreases food loss during transits.</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-green-600 mr-3">✔</span>
+                    <Check size={18} aria-hidden="true" className="text-green-600 mr-3 mt-0.5 shrink-0" />
                     <span>Enhances sustainable farming networks locally.</span>
                   </li>
                   <li className="flex items-start">
-                    <span className="text-green-600 mr-3">✔</span>
+                    <Check size={18} aria-hidden="true" className="text-green-600 mr-3 mt-0.5 shrink-0" />
                     <span>Complete pricing and sourcing transparency.</span>
                   </li>
                 </ul>
@@ -154,7 +154,7 @@ const Home = () => {
             <div className="lg:col-span-6 flex flex-col justify-center space-y-6">
               <ScrollReveal delay={100} duration={850}>
                 <span className="text-yellow-400 font-extrabold text-sm uppercase tracking-widest bg-yellow-500/10 border border-yellow-500/20 rounded-full px-4 py-1.5 w-fit">
-                  🔮 MCU Agriculture Magic
+                  <Wand2 size={14} aria-hidden="true" className="inline mr-1.5 -mt-0.5" />MCU Agriculture Magic
                 </span>
               </ScrollReveal>
               
@@ -174,7 +174,7 @@ const Home = () => {
                 <ScrollReveal delay={250} duration={800} distance="20px">
                   <div className="flex items-start space-x-3.5 group">
                     <div className="w-10 h-10 rounded-xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center text-yellow-400 group-hover:scale-110 transition-transform duration-300">
-                      ⚡
+                      <Zap size={18} aria-hidden="true" />
                     </div>
                     <div>
                       <h4 className="text-white font-bold text-base">Sorcery of Speed</h4>
@@ -186,7 +186,7 @@ const Home = () => {
                 <ScrollReveal delay={350} duration={800} distance="20px">
                   <div className="flex items-start space-x-3.5 group">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300">
-                      🛡️
+                      <ShieldCheck size={18} aria-hidden="true" />
                     </div>
                     <div>
                       <h4 className="text-white font-bold text-base">Mandala of Safety</h4>
@@ -198,7 +198,7 @@ const Home = () => {
                 <ScrollReveal delay={450} duration={800} distance="20px">
                   <div className="flex items-start space-x-3.5 group">
                     <div className="w-10 h-10 rounded-xl bg-green-500/15 border border-green-500/30 flex items-center justify-center text-green-400 group-hover:scale-110 transition-transform duration-300">
-                      🌾
+                      <Wheat size={18} aria-hidden="true" />
                     </div>
                     <div>
                       <h4 className="text-white font-bold text-base">Abundant Yields</h4>
@@ -211,7 +211,7 @@ const Home = () => {
 
             {/* Marvel-style Agricultural Magic Circle Component */}
             <div className="lg:col-span-6 flex justify-center items-center">
-              <ScrollReveal delay={200} duration={900} scale={0.95}>
+              <ScrollReveal delay={200} duration={900} className="w-full">
                 <CropMagic />
               </ScrollReveal>
             </div>

@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { useAppStore } from '../../lib/store';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
-import { Eye, EyeOff, Sprout, Check, X } from 'lucide-react';
+import { Eye, EyeOff, Sprout, Check, X, Tractor, ShoppingBag } from 'lucide-react';
 import ThemeLoader from '../../components/ThemeLoader';
 
 const Register = () => {
@@ -143,7 +143,7 @@ const Register = () => {
           <div className="space-y-3">
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-md hover:border-yellow-400/20 transition-all duration-300">
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">🚜</span>
+                <Tractor size={22} aria-hidden="true" className="text-yellow-400" />
                 <span className="text-white font-bold text-sm">Farmer</span>
               </div>
               <ul className="text-gray-300 text-xs space-y-1 font-medium">
@@ -154,7 +154,7 @@ const Register = () => {
             </div>
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-md hover:border-emerald-400/20 transition-all duration-300">
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">🛍️</span>
+                <ShoppingBag size={22} aria-hidden="true" className="text-emerald-400" />
                 <span className="text-white font-bold text-sm">Retailer</span>
               </div>
               <ul className="text-gray-300 text-xs space-y-1 font-medium">
@@ -256,7 +256,7 @@ const Register = () => {
                   }`}
                 />
                 <button type="button" onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white" tabIndex={-1}>
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -290,7 +290,7 @@ const Register = () => {
                   }`}
                 />
                 <button type="button" onClick={() => setShowRetype(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white" tabIndex={-1}>
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white" aria-label={showRetype ? 'Hide password' : 'Show password'}>
                   {showRetype ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -311,7 +311,9 @@ const Register = () => {
                         : 'border-white/10 bg-white/5 text-gray-400 hover:border-emerald-500/30 hover:bg-emerald-500/5 hover:text-emerald-400'
                     }`}
                   >
-                    <span className="mr-1.5">{r === 'farmer' ? '🚜' : '🛍️'}</span>
+                    {r === 'farmer'
+                      ? <Tractor size={16} aria-hidden="true" className="inline mr-1.5 -mt-0.5" />
+                      : <ShoppingBag size={16} aria-hidden="true" className="inline mr-1.5 -mt-0.5" />}
                     {r.charAt(0).toUpperCase() + r.slice(1)}
                   </button>
                 ))}

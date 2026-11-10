@@ -67,16 +67,18 @@ const MainLayout = () => {
                   onClick={() => navigate(-1)}
                   className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/30 transition-all duration-300 text-white hover:text-yellow-400 cursor-pointer active:scale-90 shadow-sm"
                   title="Go back to previous page"
+                  aria-label="Go back"
                 >
                   <ArrowLeft size={16} />
                 </button>
               )}
-              <Link to="/" className="flex items-center space-x-2.5 group">
+              <Link to="/" aria-label="FarmConnect home" className="flex items-center space-x-2.5 group">
                 <div className="p-1.5 bg-gradient-to-tr from-yellow-500 via-emerald-500 to-green-500 rounded-xl shadow-md group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 relative overflow-hidden">
                   <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <Wheat size={22} className="text-white relative z-10" />
                 </div>
-                <span className="text-xl md:text-2xl font-black tracking-tight bg-gradient-to-r from-yellow-400 via-emerald-400 to-green-400 text-transparent bg-clip-text hover:brightness-110 transition-all duration-300">
+                {/* On narrow phones the logo mark alone keeps room for the language picker and menu */}
+                <span className="hidden min-[430px]:inline text-xl md:text-2xl font-black tracking-tight bg-gradient-to-r from-yellow-400 via-emerald-400 to-green-400 text-transparent bg-clip-text hover:brightness-110 transition-all duration-300">
                   FarmConnect
                 </span>
               </Link>
@@ -190,6 +192,7 @@ const MainLayout = () => {
                       onClick={handleLogout}
                       className="p-1.5 rounded-full bg-white/5 hover:bg-red-500/20 hover:text-red-400 border border-white/5 hover:border-red-500/20 transition-all duration-300 cursor-pointer active:scale-95 shadow-sm"
                       title="Logout"
+                      aria-label="Log out"
                     >
                       <LogOut size={14} />
                     </button>
@@ -216,6 +219,8 @@ const MainLayout = () => {
               <button 
                 className="md:hidden p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 transition-all cursor-pointer active:scale-95"
                 onClick={() => setMenuOpen(!menuOpen)}
+                aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={menuOpen}
               >
                 {menuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
@@ -367,7 +372,7 @@ const MainLayout = () => {
               </p>
             </div>
             
-            <div className="grid grid-cols-2 gap-12">
+            <div className="grid grid-cols-2 gap-6 sm:gap-12">
               <div>
                 <h3 className="text-base font-bold mb-4 text-yellow-400 uppercase tracking-wider">Quick Links</h3>
                 <ul className="space-y-2 text-sm">
@@ -381,15 +386,15 @@ const MainLayout = () => {
               <div>
                 <h3 className="text-base font-bold mb-4 text-yellow-400 uppercase tracking-wider">Contact</h3>
                 <ul className="space-y-2 text-sm text-green-200/80">
-                  <li>22b81a6703.genai24@gmail.com</li>
-                  <li>+91 9490666957</li>
+                  <li><a href="mailto:22b81a6703.genai24@gmail.com" className="break-all hover:text-white transition-colors">22b81a6703.genai24@gmail.com</a></li>
+                  <li><a href="tel:+919490666957" className="hover:text-white transition-colors">+91 9490666957</a></li>
                 </ul>
               </div>
             </div>
           </div>
           
           <div className="mt-8 pt-8 border-t border-green-800 text-center text-green-300/60 text-xs">
-            © {new Date().getFullYear()} FarmConnect. All rights reserved. Built with premium design standards.
+            © {new Date().getFullYear()} FarmConnect. All rights reserved.
           </div>
         </div>
       </footer>

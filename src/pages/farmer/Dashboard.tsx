@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Clock, CheckCircle2, ShoppingCart, MessageCircle, X, User, TrendingUp, DollarSign, Calendar, BarChart3 } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, ShoppingCart, MessageCircle, X, User, TrendingUp, IndianRupee, Calendar, BarChart3 } from 'lucide-react';
 import { useAppStore } from '../../lib/store';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -573,7 +573,7 @@ const FarmerDashboard = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        ${crop.price_expectation?.toFixed(2) || 'Not set'}
+                        {crop.price_expectation != null ? `₹${crop.price_expectation.toFixed(2)}` : 'Not set'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -808,7 +808,7 @@ const FarmerDashboard = () => {
             {/* Top Selling Crops Chart */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <DollarSign size={18} className="mr-2 text-green-600" />
+                <IndianRupee size={18} className="mr-2 text-green-600" />
                 Top Selling Crops by Revenue
               </h3>
               <div className="h-64">
@@ -920,7 +920,7 @@ const FarmerDashboard = () => {
 
               <div className="bg-green-50 p-4 rounded-lg">
                 <div className="flex items-center">
-                  <DollarSign size={20} className="text-green-600 mr-3" />
+                  <IndianRupee size={20} className="text-green-600 mr-3" />
                   <div>
                     <p className="text-sm text-green-600 font-medium">Completed Sales</p>
                     <p className="text-xl font-bold text-green-900">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, User, MapPin, Calendar, Info, DollarSign, MessageCircle } from 'lucide-react';
+import { ArrowLeft, User, MapPin, Calendar, Info, IndianRupee, MessageCircle } from 'lucide-react';
 import { useAppStore, Review } from '../../lib/store';
 import ThemeLoader from '../../components/ThemeLoader';
 import StarRating from '../../components/StarRating';
@@ -247,11 +247,11 @@ const CropDetails = () => {
                     </div>
                   </li>
                   <li className="flex items-start">
-                    <DollarSign size={16} className="mr-2 text-green-600 mt-1" />
+                    <IndianRupee size={16} className="mr-2 text-green-600 mt-1" />
                     <div>
                       <span className="text-gray-600">Expected Price:</span>
                       <span className="ml-2 font-medium">
-                        ${crop.price_expectation?.toFixed(2) || 'Negotiable'} per {crop.unit}
+                        {crop.price_expectation != null ? `₹${crop.price_expectation.toFixed(2)} per ${crop.unit}` : 'Negotiable'}
                       </span>
                     </div>
                   </li>
@@ -291,7 +291,7 @@ const CropDetails = () => {
                 <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                   <h3 className="text-lg font-medium text-yellow-800 mb-2">Your Offer</h3>
                   <p className="text-yellow-700 mb-2">
-                    You've offered <span className="font-bold">${existingOffer.price.toFixed(2)}</span> per {crop.unit}
+                    You've offered <span className="font-bold">₹{existingOffer.price.toFixed(2)}</span> per {crop.unit}
                     for this crop on {new Date(existingOffer.created_at).toLocaleDateString()}.
                   </p>
                   <p className="text-yellow-700">
@@ -321,7 +321,7 @@ const CropDetails = () => {
                         </label>
                         <div className="relative rounded-md shadow-sm">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-500 sm:text-sm">$</span>
+                            <span className="text-gray-500 sm:text-sm">₹</span>
                           </div>
                           <input
                             type="number"
@@ -342,7 +342,7 @@ const CropDetails = () => {
                         </div>
                         {crop.price_expectation && (
                           <p className="mt-1 text-sm text-gray-500">
-                            Farmer's expected price: ${crop.price_expectation.toFixed(2)} per {crop.unit}
+                            Farmer's expected price: ₹{crop.price_expectation.toFixed(2)} per {crop.unit}
                           </p>
                         )}
                       </div>

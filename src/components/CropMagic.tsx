@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Zap } from 'lucide-react';
 
 interface Particle {
   x: number;
@@ -295,7 +296,7 @@ const CropMagic = () => {
 
       {/* Magical 3D Tilting Mandala Group */}
       <div 
-        className="relative z-10 w-[380px] h-[380px] flex items-center justify-center"
+        className="relative z-10 w-[290px] h-[290px] sm:w-[380px] sm:h-[380px] flex items-center justify-center"
         style={get3DStyle()}
       >
         {/* Glow Ring Behind Everything */}
@@ -441,8 +442,8 @@ const CropMagic = () => {
           <span className="text-xs font-bold text-yellow-400 uppercase tracking-widest">MCU Crop Magic</span>
           <span className="text-xs text-white/70">Click anywhere to cast harvest particles!</span>
         </div>
-        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-yellow-500 text-green-950 font-bold text-xs animate-bounce">
-          ⚡
+        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-yellow-500 text-green-950 font-bold text-xs">
+          <Zap size={14} aria-hidden="true" />
         </div>
       </div>
 

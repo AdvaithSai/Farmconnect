@@ -268,7 +268,7 @@ const ManageOffers = () => {
                           {offer.crops.price_expectation && (
                             <div className="text-sm">
                               {offer.price >= offer.crops.price_expectation
-                                ? <span className="text-green-600">Above expected ✓</span>
+                                ? <span className="text-green-600">Above expected</span>
                                 : <span className="text-red-600">Below expected</span>
                               }
                             </div>

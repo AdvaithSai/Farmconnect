@@ -1,6 +1,6 @@
 import { useAppStore } from '../lib/store';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, Calendar, Shield, ArrowLeft, Edit, Lock, Eye, EyeOff, Star } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Shield, ArrowLeft, Edit, Lock, Eye, EyeOff, Star, Tractor, ShoppingBag } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
@@ -53,7 +53,9 @@ const Profile = () => {
   };
 
   const getRoleIcon = (role: string) => {
-    return role === 'farmer' ? '🌾' : '🛒';
+    return role === 'farmer'
+      ? <Tractor size={24} aria-hidden="true" />
+      : <ShoppingBag size={24} aria-hidden="true" />;
   };
 
   const getRoleColor = (role: string) => {
@@ -385,6 +387,7 @@ const Profile = () => {
                         <button
                           type="button"
                           onClick={() => setShowOldPassword(!showOldPassword)}
+                          aria-label={showOldPassword ? 'Hide password' : 'Show password'}
                           className="absolute inset-y-0 right-0 pr-3 flex items-center"
                           disabled={isChangingPassword}
                         >
@@ -417,6 +420,7 @@ const Profile = () => {
                         <button
                           type="button"
                           onClick={() => setShowNewPassword(!showNewPassword)}
+                          aria-label={showNewPassword ? 'Hide password' : 'Show password'}
                           className="absolute inset-y-0 right-0 pr-3 flex items-center"
                           disabled={isChangingPassword}
                         >
@@ -470,6 +474,7 @@ const Profile = () => {
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                           className="absolute inset-y-0 right-0 pr-3 flex items-center"
                           disabled={isChangingPassword}
                         >

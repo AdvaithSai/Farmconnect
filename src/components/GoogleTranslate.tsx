@@ -55,7 +55,7 @@ const GoogleTranslate = ({ id = 'google_translate_element' }: GoogleTranslatePro
   }, [id]);
 
   return (
-    <div className="relative flex items-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/30 shadow-inner transition-all duration-300 rounded-full pl-3 pr-2.5 w-[145px] h-[34px] cursor-pointer overflow-hidden group">
+    <div className="relative flex items-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/30 shadow-inner transition-all duration-300 rounded-full pl-3 pr-2.5 w-[160px] h-[34px] cursor-pointer overflow-hidden group">
       {/* Globe icon — positioned on the left and visual-only */}
       <svg
         xmlns="http://www.w3.org/2000/svg"

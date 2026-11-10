@@ -268,7 +268,7 @@ const MyOffers = () => {
                       <div className="text-sm text-gray-500">{offer.crops.location}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">${offer.price.toFixed(2)} per {offer.crops.unit}</div>
+                      <div className="text-sm font-medium text-gray-900">₹{offer.price.toFixed(2)} per {offer.crops.unit}</div>
                       <div className="text-sm text-gray-500">
                         Total: ${(offer.price * offer.crops.quantity).toFixed(2)}
                       </div>

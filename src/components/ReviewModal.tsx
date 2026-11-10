@@ -65,6 +65,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
           <h2 className="text-xl font-bold text-gray-800">Rate Transaction</h2>
           <button 
             onClick={onClose}
+            aria-label="Close"
             className="p-1 hover:bg-gray-200 rounded-full transition-colors text-gray-500"
           >
             <X size={20} />

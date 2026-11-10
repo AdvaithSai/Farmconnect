@@ -131,13 +131,13 @@ const TransactionDetails = () => {
           <span className="font-semibold">Crop Location:</span> {crop.location}
         </div>
         <div className="mb-4">
-          <span className="font-semibold">Price per {crop.unit}:</span> ${offer.price.toFixed(2)}
+          <span className="font-semibold">Price per {crop.unit}:</span> ₹{offer.price.toFixed(2)}
         </div>
         <div className="mb-4">
           <span className="font-semibold">Quantity:</span> {crop.quantity} {crop.unit}
         </div>
         <div className="mb-4">
-          <span className="font-semibold">Total Price:</span> ${totalPrice.toFixed(2)}
+          <span className="font-semibold">Total Price:</span> ₹{totalPrice.toFixed(2)}
         </div>
         <div className="mb-4">
           <span className="font-semibold">Offer Initiated:</span> {new Date(offer.created_at).toLocaleString()}

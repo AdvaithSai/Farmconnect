@@ -7,6 +7,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ReviewModal from './ReviewModal';
+import { CheckCircle2 } from 'lucide-react';
 
 // Fix for default marker icons in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -357,8 +358,8 @@ const LocationTracker: React.FC<LocationTrackerProps> = ({
       )}
 
       {deliveryStatus === 'acknowledged' && (
-        <div className="text-center py-3 px-4 bg-green-50 border border-green-200 text-green-800 rounded-md shadow-sm font-medium">
-          ✅ Delivery completed and confirmed by both parties
+        <div className="text-center py-3 px-4 bg-green-50 border border-green-200 text-green-800 rounded-md shadow-sm font-medium flex items-center justify-center gap-2">
+          <CheckCircle2 size={18} aria-hidden="true" /> Delivery completed and confirmed by both parties
         </div>
       )}
 

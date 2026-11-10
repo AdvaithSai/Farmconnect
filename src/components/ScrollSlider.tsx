@@ -327,7 +327,8 @@ export default function ScrollSlider() {
           <button
             key={slide.id}
             onClick={() => handleDotClick(idx)}
-            className="group relative flex items-center justify-center w-8 h-8 focus:outline-none cursor-pointer"
+            aria-label={`Show slide: ${slide.subtitle}`}
+            className="group relative flex items-center justify-center w-8 h-8 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 cursor-pointer"
           >
             {/* Hover Tooltip */}
             <span className="absolute right-10 px-3 py-1 rounded bg-green-950/90 text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none border border-white/10">

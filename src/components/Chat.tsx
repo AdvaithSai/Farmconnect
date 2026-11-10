@@ -252,7 +252,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
             const { userOffers } = useAppStore.getState();
             const currentOffer = userOffers.find(o => o.id === offer.id);
             if (!currentOffer) {
-              alert('Offer not found. Please refresh the page.');
+              toast.error('Offer not found. Please refresh the page.');
               return;
             }
             
@@ -282,7 +282,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
             
           } catch (error) {
             console.error('Error updating transaction/crop status:', error);
-            alert('Payment succeeded but failed to update transaction/crop status. Please contact support.');
+            toast.error('Payment succeeded but the order could not be updated. Please contact support.');
           }
         },
         prefill: {
@@ -326,7 +326,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       });
     } catch (error) {
       console.error('Error in payment flow:', error);
-      alert('Failed to initiate payment. Please try again.');
+      toast.error('Failed to start the payment. Please try again.');
     }
   };
 
@@ -513,6 +513,7 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="Propose new price..."
+                aria-label="Propose a new price per unit"
                 className="flex-1 px-4 py-3 bg-white/70 backdrop-blur-sm border border-yellow-300/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:bg-white shadow-sm transition-all"
                 disabled={isPriceLoading}
               />
@@ -536,11 +537,13 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Type your message..."
+              aria-label="Message"
               className="flex-1 px-5 py-3 bg-white/80 backdrop-blur-sm border border-white/60 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white shadow-sm transition-all text-gray-800 placeholder-gray-400"
               disabled={isLoading}
             />
             <button
               type="submit"
+              aria-label="Send message"
               disabled={!message.trim() || isLoading}
               className="p-3 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-full hover:from-green-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:shadow-none disabled:transform-none shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center"
             >

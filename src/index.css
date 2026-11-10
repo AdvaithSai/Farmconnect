@@ -51,7 +51,7 @@
   cursor: pointer !important;
   
   /* Text positioning: pad on the left to push text past the globe icon */
-  padding: 0 24px 0 28px !important;
+  padding: 0 22px 0 30px !important;
   margin: 0 !important;
 
   /* Custom chevron dropdown icon on the right */
@@ -104,4 +104,14 @@
 /* Prevent body shift caused by Google's top banner */
 body {
   top: 0 !important;
+}
+
+/* Respect the system "reduce motion" setting: keep state changes, drop movement */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

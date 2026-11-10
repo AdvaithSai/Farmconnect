@@ -223,7 +223,8 @@ const AiChatbot = () => {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="w-14 h-14 rounded-full bg-gradient-to-tr from-yellow-500 via-emerald-600 to-green-600 text-white flex items-center justify-center shadow-[0_10px_30px_rgba(4,120,87,0.4)] border border-white/20 cursor-pointer hover:scale-110 active:scale-95 transition-all duration-300 relative group animate-bounce"
+          aria-label="Open the FarmConnect assistant"
+          className="w-14 h-14 rounded-full bg-gradient-to-tr from-yellow-500 via-emerald-600 to-green-600 text-white flex items-center justify-center shadow-[0_10px_30px_rgba(4,120,87,0.4)] border border-white/20 cursor-pointer hover:scale-110 active:scale-95 transition-all duration-300 relative group"
         >
           <div className="absolute inset-0 rounded-full bg-yellow-400 opacity-20 blur-sm group-hover:opacity-40 transition-opacity duration-300" />
           <MessageSquare size={24} className="relative z-10" />
@@ -236,7 +237,7 @@ const AiChatbot = () => {
 
       {/* Main Chatbot Glassmorphic Panel */}
       {isOpen && (
-        <div className="w-[360px] md:w-[400px] h-[550px] rounded-3xl bg-black/85 border border-white/10 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 text-white">
+        <div className="w-[calc(100vw-3rem)] max-w-[360px] md:w-[400px] md:max-w-none h-[min(550px,calc(100vh-3rem))] rounded-3xl bg-black/85 border border-white/10 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 text-white">
           
           {/* Header */}
           <div className="p-4 border-b border-white/10 bg-gradient-to-r from-green-950/40 via-emerald-950/20 to-black/60 flex items-center justify-between">
@@ -246,7 +247,7 @@ const AiChatbot = () => {
               </div>
               <div>
                 <h3 className="text-sm font-black bg-gradient-to-r from-yellow-400 via-emerald-400 to-green-400 text-transparent bg-clip-text">Ramu (AI Support)</h3>
-                <span className="text-[10px] text-gray-400 flex items-center gap-1 font-bold">
+                <span className="text-[11px] text-gray-400 flex items-center gap-1 font-bold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Situational RAG Active
                 </span>
               </div>
@@ -256,6 +257,7 @@ const AiChatbot = () => {
                 setIsOpen(false);
                 setEscalating(false);
               }}
+              aria-label="Close the assistant"
               className="text-gray-400 hover:text-white transition-colors cursor-pointer w-7 h-7 rounded-full bg-white/5 border border-white/5 flex items-center justify-center hover:bg-white/10"
             >
               <X size={16} />
@@ -278,7 +280,7 @@ const AiChatbot = () => {
 
                 <form onSubmit={handleEscalationSubmit} className="space-y-3 pt-1">
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-widest font-black text-gray-400">Phone Number</label>
+                    <label className="text-[11px] uppercase tracking-widest font-black text-gray-400">Phone Number</label>
                     <input
                       type="tel"
                       required
@@ -289,7 +291,7 @@ const AiChatbot = () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-widest font-black text-gray-400">Issue Details</label>
+                    <label className="text-[11px] uppercase tracking-widest font-black text-gray-400">Issue Details</label>
                     <textarea
                       required
                       rows={4}
@@ -350,7 +352,7 @@ const AiChatbot = () => {
                         {m.text}
                       </div>
                     )}
-                    <span className="text-[9px] text-gray-500 mt-1 font-semibold px-1">
+                    <span className="text-[11px] text-gray-500 mt-1 font-semibold px-1">
                       {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -378,10 +380,12 @@ const AiChatbot = () => {
                 onChange={e => setInput(e.target.value)}
                 disabled={isTyping}
                 placeholder="Ask Ramu anything..."
+                aria-label="Message the assistant"
                 className="flex-1 px-4 py-2.5 rounded-xl border border-white/10 bg-black/40 text-white placeholder-gray-500 text-xs focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all duration-300"
               />
               <button
                 type="submit"
+                aria-label="Send message"
                 disabled={!input.trim() || isTyping}
                 className="w-9 h-9 rounded-xl bg-gradient-to-tr from-yellow-500 to-emerald-600 text-black flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50"
               >

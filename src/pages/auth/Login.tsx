@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useAppStore } from '../../lib/store';
 import { FcGoogle } from 'react-icons/fc';
 import { FaFacebook } from 'react-icons/fa';
-import { Eye, EyeOff, Sprout, Wheat, ShieldCheck, Users } from 'lucide-react';
+import { Eye, EyeOff, Sprout, Wheat, ShieldCheck, Users, MessageCircle, CreditCard } from 'lucide-react';
 import ThemeLoader from '../../components/ThemeLoader';
 
 const Login = () => {
@@ -120,12 +120,12 @@ const Login = () => {
           {/* Feature cards */}
           <div className="space-y-3">
             {[
-              { emoji: '🌾', title: 'Direct Crop Listings', desc: 'List your harvest with full control over price' },
-              { emoji: '💬', title: 'Real-time Negotiations', desc: 'Chat and close deals directly with buyers' },
-              { emoji: '💳', title: 'Secure Payments', desc: 'Razorpay-powered, instant settlements' },
+              { icon: Wheat, title: 'Direct Crop Listings', desc: 'List your harvest with full control over price' },
+              { icon: MessageCircle, title: 'Real-time Negotiations', desc: 'Chat and close deals directly with buyers' },
+              { icon: CreditCard, title: 'Secure Payments', desc: 'Razorpay-powered, instant settlements' },
             ].map((f, i) => (
               <div key={i} className="flex items-start gap-3 bg-white/5 backdrop-blur-md rounded-xl px-4 py-3 border border-white/10 shadow-lg hover:border-yellow-400/20 transition-all duration-300 group">
-                <span className="text-2xl mt-0.5 group-hover:scale-110 transition-transform duration-300">{f.emoji}</span>
+                <f.icon size={20} aria-hidden="true" className="text-yellow-400 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-white font-bold text-sm">{f.title}</p>
                   <p className="text-gray-400 text-xs mt-0.5">{f.desc}</p>
@@ -239,7 +239,7 @@ const Login = () => {
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
