@@ -5,6 +5,7 @@ import { CreditCard, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '../../lib/store';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { createOrder, verifyPayment } from '../../lib/payments';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
@@ -130,54 +131,28 @@ const Checkout = () => {
       }
       const keyId = keyData.key;
 
-      const totalAmount = offer.price * offer.crops.quantity;
-
-      const res = await fetch(`${BACKEND_URL}/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: totalAmount,
-          receipt: offer.id,
-        }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        toast.error('Failed to create order');
+      // The server computes the amount from the accepted offer
+      let order;
+      try {
+        order = await createOrder(offer.id);
+      } catch (err) {
+        toast.error(`Failed to create order: ${err instanceof Error ? err.message : 'Please try again.'}`);
         setIsProcessing(false);
         return;
       }
-      
+
       const options = {
         key: keyId,
-        amount: data.order.amount,
-        currency: data.order.currency || 'INR',
+        amount: order.amount,
+        currency: order.currency || 'INR',
         name: 'FarmConnect',
         description: 'Crop Payment',
-        order_id: data.order.id,
+        order_id: order.id,
         handler: async function (response: RazorpayResponse) {
           try {
-            // Mark transaction as completed
-            const txnRes = await fetch(`${BACKEND_URL}/mark-transaction-completed`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transactionId: offer.id }),
-            });
-            
-            if (!txnRes.ok) {
-              throw new Error('Failed to mark transaction as completed');
-            }
-            
-            // Mark crop as sold
-            const cropRes = await fetch(`${BACKEND_URL}/mark-crop-sold`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cropId: offer.crop_id }),
-            });
-            
-            if (!cropRes.ok) {
-              throw new Error('Failed to mark crop as sold');
-            }
-            
+            // Server verifies the payment, then marks the transaction completed and the crop sold
+            await verifyPayment(response);
+
             toast.success('Payment successful! Payment ID: ' + response.razorpay_payment_id);
             
             // Refresh all data globally

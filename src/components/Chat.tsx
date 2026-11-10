@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { doc, setDoc, collection, query, where, orderBy, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import LocationTracker from './LocationTracker';
+import { createOrder, verifyPayment } from '../lib/payments';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
@@ -209,11 +210,6 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
   // Razorpay payment handler
   const handlePayNow = async (offer: { id: string; price: number }) => {
     try {
-      // Find the crop to calculate the total amount
-      const crop = crops.find(c => c.id === currentChat?.crop_id);
-      const quantity = crop?.quantity || 1;
-      const totalAmount = offer.price * quantity;
-
       // Fetch Razorpay Key ID from backend
       const keyRes = await fetch(`${BACKEND_URL}/razorpay-key`);
       if (!keyRes.ok) {
@@ -232,40 +228,24 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       
       const keyId = keyData.key;
 
-      const res = await fetch(`${BACKEND_URL}/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: totalAmount,
-          receipt: offer.id,
-        }),
-      });
-      
-      if (!res.ok) {
-        console.error('Order creation failed with status:', res.status);
-        const errorText = await res.text();
-        console.error('Error response:', errorText);
-        toast.error('Failed to create order. Please try again.');
+      // The server computes the amount from the accepted offer
+      let order;
+      try {
+        order = await createOrder(offer.id);
+      } catch (err) {
+        console.error('Order creation failed:', err);
+        toast.error(`Failed to create order: ${err instanceof Error ? err.message : 'Please try again.'}`);
         return;
       }
-      
-      const data = await res.json();
-      
-      // Check if the response contains the expected data structure
-      if (!data.success || !data.order) {
-        console.error('Order creation failed or invalid response:', data);
-        toast.error(`Failed to create order: ${data.error || 'Invalid response from server'}`);
-        return;
-      }
-      
+
       // Initialize Razorpay with the order data
       const options = {
         key: keyId,
-        amount: data.order.amount,
-        currency: data.order.currency || 'INR',
+        amount: order.amount,
+        currency: order.currency || 'INR',
         name: 'FarmConnect',
         description: 'Crop Payment',
-        order_id: data.order.id,
+        order_id: order.id,
         handler: async function (response: RazorpayResponse) {
           try {
             // Find the transaction for this offer
@@ -276,28 +256,9 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
               return;
             }
             
-            // Mark transaction as completed
-            const txnRes = await fetch(`${BACKEND_URL}/mark-transaction-completed`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transactionId: currentOffer.id }),
-            });
-            
-            if (!txnRes.ok) {
-              throw new Error('Failed to mark transaction as completed');
-            }
-            
-            // Mark crop as sold
-            const cropRes = await fetch(`${BACKEND_URL}/mark-crop-sold`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cropId: currentOffer.crop_id }),
-            });
-            
-            if (!cropRes.ok) {
-              throw new Error('Failed to mark crop as sold');
-            }
-            
+            // Server verifies the payment, then marks the transaction completed and the crop sold
+            await verifyPayment(response);
+
             // Create delivery tracking record
             const trackingDocRef = doc(db, 'delivery_tracking', currentOffer.id);
             await setDoc(trackingDocRef, {

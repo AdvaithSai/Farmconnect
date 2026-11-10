@@ -6,6 +6,7 @@ import { useAppStore } from '../../lib/store';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import ThemeLoader from '../../components/ThemeLoader';
+import { createOrder, verifyPayment } from '../../lib/payments';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
@@ -132,54 +133,33 @@ const RetailerDashboard = () => {
       }
       const keyId = keyData.key;
 
-      // Calculate total price
-      const quantity = cropQuantities[offer.crop_id] || 1;
-      const totalPrice = offer.price * quantity;
-
-      const res = await fetch(`${BACKEND_URL}/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: totalPrice,
-          receipt: offer.id,
-        }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        toast.error('Failed to create order. Please try again.');
+      // The server computes the amount from the accepted offer
+      let order;
+      try {
+        order = await createOrder(offer.id);
+      } catch (err) {
+        toast.error(`Failed to create order: ${err instanceof Error ? err.message : 'Please try again.'}`);
         return;
       }
 
       const options = {
         key: keyId,
-        amount: data.order.amount,
-        currency: data.order.currency || 'INR',
+        amount: order.amount,
+        currency: order.currency || 'INR',
         name: 'FarmConnect',
         description: 'Crop Payment',
-        order_id: data.order.id,
+        order_id: order.id,
         handler: async function (response: RazorpayResponse) {
-          toast.success('Payment successful! Payment ID: ' + response.razorpay_payment_id);
           try {
-            // Find the transaction for this offer
-            const pendingTxn = transactions.find(t => t.offer_id === offer.id && t.status === 'pending_payment');
-            if (pendingTxn) {
-              await fetch(`${BACKEND_URL}/mark-transaction-completed`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transactionId: pendingTxn.id }),
-              });
-              await fetch(`${BACKEND_URL}/mark-crop-sold`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cropId: pendingTxn.crop_id }),
-              });
-              // Refresh all data without a full page reload
-              await useAppStore.getState().refreshAllData();
-              // Re-fetch transactions for this page
-              const q = query(collection(db, 'transactions'), where('retailer_id', '==', user?.id));
-              const snap = await getDocs(q);
-              setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
-            }
+            // Server verifies the payment, then marks the transaction completed and the crop sold
+            await verifyPayment(response);
+            toast.success('Payment successful! Payment ID: ' + response.razorpay_payment_id);
+            // Refresh all data without a full page reload
+            await useAppStore.getState().refreshAllData();
+            // Re-fetch transactions for this page
+            const q = query(collection(db, 'transactions'), where('retailer_id', '==', user?.id));
+            const snap = await getDocs(q);
+            setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
           } catch {
             toast.error('Payment succeeded but failed to update status. Please refresh the page.');
           }

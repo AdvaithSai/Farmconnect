@@ -3,6 +3,7 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 const admin = require('firebase-admin');
 const Razorpay = require('razorpay');
+const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -22,6 +23,49 @@ admin.initializeApp({
 const firestoreDb = admin.firestore();
 
 const otps = {}; // In-memory OTP store; swap for Redis/DB in production
+const otpRequests = {}; // email -> { count, windowStart }
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5; // wrong guesses allowed per OTP
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+const OTP_MAX_REQUESTS_PER_HOUR = 5;
+
+const normalizeEmail = (email) => (typeof email === 'string' ? email.trim().toLowerCase() : '');
+const isDocId = (id) => typeof id === 'string' && id.length > 0 && !id.includes('/');
+
+// Checks an OTP guess. Wrong guesses are counted and the OTP is burned after
+// OTP_MAX_ATTEMPTS, so a 6-digit code cannot be brute-forced.
+function checkOtp(email, otp) {
+  const record = otps[email];
+  if (!record) return 'OTP not found. Please request a new one.';
+  if (Date.now() > record.expires) {
+    delete otps[email];
+    return 'OTP expired. Please request a new one.';
+  }
+  const guess = Buffer.from(String(otp ?? ''));
+  const actual = Buffer.from(record.otp);
+  if (guess.length !== actual.length || !crypto.timingSafeEqual(guess, actual)) {
+    record.attempts += 1;
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      delete otps[email];
+      return 'Too many incorrect attempts. Please request a new OTP.';
+    }
+    return 'Invalid OTP';
+  }
+  return null;
+}
+
+// Requires a Firebase ID token; sets req.uid to the verified caller.
+async function requireAuth(req, res, next) {
+  const match = /^Bearer (.+)$/.exec(req.headers.authorization || '');
+  if (!match) return res.status(401).json({ success: false, error: 'Sign in required' });
+  try {
+    req.uid = (await admin.auth().verifyIdToken(match[1])).uid;
+    next();
+  } catch {
+    res.status(401).json({ success: false, error: 'Invalid or expired session' });
+  }
+}
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -40,11 +84,25 @@ const razorpay = new Razorpay({
 
 // 1. Request OTP
 app.post('/request-otp', async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   if (!email) return res.status(400).json({ success: false, error: 'Email is required' });
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  otps[email] = { otp, expires: Date.now() + 10 * 60 * 1000 };
+  const now = Date.now();
+  const existing = otps[email];
+  if (existing && now - existing.sentAt < OTP_RESEND_COOLDOWN_MS) {
+    return res.status(429).json({ success: false, error: 'Please wait a minute before requesting another OTP.' });
+  }
+  let requests = otpRequests[email];
+  if (!requests || now - requests.windowStart > 60 * 60 * 1000) {
+    requests = otpRequests[email] = { count: 0, windowStart: now };
+  }
+  if (requests.count >= OTP_MAX_REQUESTS_PER_HOUR) {
+    return res.status(429).json({ success: false, error: 'Too many OTP requests. Please try again later.' });
+  }
+  requests.count += 1;
+
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  otps[email] = { otp, expires: now + OTP_TTL_MS, sentAt: now, attempts: 0 };
 
   try {
     await transporter.sendMail({
@@ -63,30 +121,29 @@ app.post('/request-otp', async (req, res) => {
 
 // 2. Verify OTP
 app.post('/verify-otp', (req, res) => {
-  const { email, otp } = req.body;
-  const record = otps[email];
-  if (!record) return res.json({ success: false, error: 'OTP not found' });
-  if (Date.now() > record.expires) return res.json({ success: false, error: 'OTP expired' });
-  if (otp !== record.otp) return res.json({ success: false, error: 'Invalid OTP' });
+  const error = checkOtp(normalizeEmail(req.body.email), req.body.otp);
+  if (error) return res.json({ success: false, error });
   res.json({ success: true });
 });
 
 // 3. Reset Password — now actually updates Firebase Auth
 app.post('/reset-password', async (req, res) => {
-  const { email, otp, newPassword } = req.body;
-  const record = otps[email];
-  if (!record) return res.json({ success: false, error: 'OTP not found' });
-  if (Date.now() > record.expires) return res.json({ success: false, error: 'OTP expired' });
-  if (otp !== record.otp) return res.json({ success: false, error: 'Invalid OTP' });
+  const email = normalizeEmail(req.body.email);
+  const { otp, newPassword } = req.body;
+  if (typeof newPassword !== 'string' || newPassword.length < 6) {
+    return res.json({ success: false, error: 'Password must be at least 6 characters' });
+  }
+  const error = checkOtp(email, otp);
+  if (error) return res.json({ success: false, error });
 
+  delete otps[email]; // single use, even if the update below fails
   try {
     const user = await admin.auth().getUserByEmail(email);
     await admin.auth().updateUser(user.uid, { password: newPassword });
-    delete otps[email];
     res.json({ success: true });
   } catch (err) {
     console.error('Failed to reset password:', err);
-    res.json({ success: false, error: err.message });
+    res.json({ success: false, error: 'Failed to reset password' });
   }
 });
 
@@ -101,93 +158,139 @@ app.get('/razorpay-key', (req, res) => {
   res.json({ success: true, key: process.env.RAZORPAY_KEY_ID });
 });
 
-// Create Razorpay order
-app.post('/create-order', async (req, res) => {
-  console.log('Received order creation request:', req.body);
-
+// Create Razorpay order. The amount is computed here from the accepted offer
+// in Firestore; nothing the browser sends decides what gets charged.
+app.post('/create-order', requireAuth, async (req, res) => {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
     console.error('Razorpay credentials not configured');
     return res.status(500).json({ success: false, error: 'Payment gateway not properly configured' });
   }
 
-  const { amount, currency = 'INR', receipt } = req.body;
-
-  if (!amount || isNaN(amount) || amount <= 0) {
-    return res.status(400).json({ success: false, error: 'Invalid amount provided' });
-  }
-  if (!receipt) {
-    return res.status(400).json({ success: false, error: 'Receipt ID is required' });
+  const { offerId } = req.body;
+  if (!isDocId(offerId)) {
+    return res.status(400).json({ success: false, error: 'offerId is required' });
   }
 
   try {
-    const orderData = {
-      amount: Math.round(amount * 100), // paise
-      currency,
-      receipt,
+    const offerSnap = await firestoreDb.collection('offers').doc(offerId).get();
+    const offer = offerSnap.data();
+    if (!offer || offer.retailer_id !== req.uid) {
+      return res.status(403).json({ success: false, error: 'This offer does not belong to you' });
+    }
+    if (offer.status !== 'accepted') {
+      return res.status(409).json({ success: false, error: 'This offer has not been accepted' });
+    }
+    const cropSnap = await firestoreDb.collection('crops').doc(offer.crop_id).get();
+    const crop = cropSnap.data();
+    if (!crop) {
+      return res.status(404).json({ success: false, error: 'Crop not found' });
+    }
+    if (crop.status === 'sold') {
+      return res.status(409).json({ success: false, error: 'This crop has already been paid for' });
+    }
+
+    const amount = Math.round(Number(offer.price) * (Number(crop.quantity) || 1) * 100); // paise
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, error: 'Offer has an invalid amount' });
+    }
+
+    const order = await razorpay.orders.create({
+      amount,
+      currency: 'INR',
+      receipt: offerId,
       payment_capture: 1,
-    };
-    console.log('Creating Razorpay order:', orderData);
-    const order = await razorpay.orders.create(orderData);
-    console.log('Order created:', order.id);
+      notes: { offerId },
+    });
+    console.log('[create-order] order', order.id, 'for offer', offerId);
     res.json({ success: true, order });
   } catch (err) {
-    console.error('Error creating Razorpay order:', err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('[create-order] error:', err);
+    res.status(500).json({ success: false, error: 'Failed to create order' });
   }
 });
 
-// ─── Post-Payment Database Updates ──────────────────────────────────────────
+// Verify a Razorpay payment and record it. This is the only way a transaction
+// becomes 'completed' or a crop becomes 'sold'.
+app.post('/verify-payment', requireAuth, async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+  if (![razorpay_order_id, razorpay_payment_id, razorpay_signature].every((v) => typeof v === 'string' && v)) {
+    return res.status(400).json({ success: false, error: 'Missing payment details' });
+  }
 
-// Mark transaction as completed after successful payment
-app.post('/mark-transaction-completed', async (req, res) => {
-  const { transactionId } = req.body;
-  if (!transactionId) {
-    return res.status(400).json({ success: false, error: 'transactionId is required' });
+  const expected = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+    .digest('hex');
+  const given = Buffer.from(razorpay_signature);
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, Buffer.from(expected))) {
+    return res.status(400).json({ success: false, error: 'Payment signature is invalid' });
   }
-  console.log('[mark-transaction-completed] transactionId:', transactionId);
-  try {
-    await firestoreDb.collection('transactions').doc(transactionId).update({
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-    });
-    console.log('[mark-transaction-completed] success');
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[mark-transaction-completed] error:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
 
-// Mark crop as sold after successful payment
-app.post('/mark-crop-sold', async (req, res) => {
-  const { cropId } = req.body;
-  if (!cropId) {
-    return res.status(400).json({ success: false, error: 'cropId is required' });
-  }
-  console.log('[mark-crop-sold] cropId:', cropId);
   try {
-    await firestoreDb.collection('crops').doc(cropId).update({
-      status: 'sold',
+    // The order (created by us above) says which offer was paid for.
+    const order = await razorpay.orders.fetch(razorpay_order_id);
+    const offerId = order.notes && order.notes.offerId;
+    if (!isDocId(offerId)) {
+      return res.status(400).json({ success: false, error: 'Order is not linked to an offer' });
+    }
+    const offerSnap = await firestoreDb.collection('offers').doc(offerId).get();
+    const offer = offerSnap.data();
+    if (!offer || offer.retailer_id !== req.uid) {
+      return res.status(403).json({ success: false, error: 'This offer does not belong to you' });
+    }
+
+    const txSnap = await firestoreDb.collection('transactions').where('offer_id', '==', offerId).get();
+    const batch = firestoreDb.batch();
+    txSnap.forEach((tx) => {
+      if (tx.get('status') === 'pending_payment') {
+        batch.update(tx.ref, {
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          razorpay_order_id,
+          razorpay_payment_id,
+        });
+      }
     });
-    console.log('[mark-crop-sold] success');
-    res.json({ success: true });
+    batch.update(firestoreDb.collection('crops').doc(offer.crop_id), { status: 'sold' });
+    await batch.commit();
+
+    console.log('[verify-payment] recorded payment', razorpay_payment_id, 'for offer', offerId);
+    res.json({ success: true, offerId, cropId: offer.crop_id });
   } catch (err) {
-    console.error('[mark-crop-sold] error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('[verify-payment] error:', err);
+    res.status(500).json({ success: false, error: 'Failed to record payment' });
   }
 });
 
 // ─── Delivery Tracking ───────────────────────────────────────────────────────
 
-// Update farmer GPS location for delivery tracking
-app.post('/update-location', async (req, res) => {
-  const { transactionId, latitude, longitude } = req.body;
-  if (!transactionId || latitude == null || longitude == null) {
-    return res.status(400).json({ success: false, error: 'transactionId, latitude, and longitude are required' });
+// Returns the tracking doc ref if the caller is the given party on it
+// ('farmer_id' or 'retailer_id'); otherwise sends the error and returns null.
+async function trackingRefFor(req, res, partyField) {
+  const { transactionId } = req.body;
+  if (!isDocId(transactionId)) {
+    res.status(400).json({ success: false, error: 'transactionId is required' });
+    return null;
   }
-  console.log('[update-location] transactionId:', transactionId, 'location:', latitude, longitude);
+  const ref = firestoreDb.collection('delivery_tracking').doc(transactionId);
+  const snap = await ref.get();
+  if (!snap.exists || snap.get(partyField) !== req.uid) {
+    res.status(403).json({ success: false, error: 'Not allowed for this delivery' });
+    return null;
+  }
+  return ref;
+}
+
+// Update farmer GPS location for delivery tracking
+app.post('/update-location', requireAuth, async (req, res) => {
+  const { latitude, longitude } = req.body;
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+    return res.status(400).json({ success: false, error: 'latitude and longitude are required' });
+  }
   try {
-    await firestoreDb.collection('delivery_tracking').doc(transactionId).update({
+    const ref = await trackingRefFor(req, res, 'farmer_id');
+    if (!ref) return;
+    await ref.update({
       location_latitude: latitude,
       location_longitude: longitude,
       last_updated: new Date().toISOString(),
@@ -195,45 +298,33 @@ app.post('/update-location', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[update-location] error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to update location' });
   }
 });
 
 // Mark delivery as completed by farmer
-app.post('/mark-delivery-completed', async (req, res) => {
-  const { transactionId } = req.body;
-  if (!transactionId) {
-    return res.status(400).json({ success: false, error: 'transactionId is required' });
-  }
-  console.log('[mark-delivery-completed] transactionId:', transactionId);
+app.post('/mark-delivery-completed', requireAuth, async (req, res) => {
   try {
-    await firestoreDb.collection('delivery_tracking').doc(transactionId).update({
-      status: 'delivered',
-      delivered_at: new Date().toISOString(),
-    });
+    const ref = await trackingRefFor(req, res, 'farmer_id');
+    if (!ref) return;
+    await ref.update({ status: 'delivered', delivered_at: new Date().toISOString() });
     res.json({ success: true });
   } catch (err) {
     console.error('[mark-delivery-completed] error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to update delivery' });
   }
 });
 
 // Acknowledge delivery receipt by retailer
-app.post('/acknowledge-delivery', async (req, res) => {
-  const { transactionId } = req.body;
-  if (!transactionId) {
-    return res.status(400).json({ success: false, error: 'transactionId is required' });
-  }
-  console.log('[acknowledge-delivery] transactionId:', transactionId);
+app.post('/acknowledge-delivery', requireAuth, async (req, res) => {
   try {
-    await firestoreDb.collection('delivery_tracking').doc(transactionId).update({
-      status: 'acknowledged',
-      acknowledged_at: new Date().toISOString(),
-    });
+    const ref = await trackingRefFor(req, res, 'retailer_id');
+    if (!ref) return;
+    await ref.update({ status: 'acknowledged', acknowledged_at: new Date().toISOString() });
     res.json({ success: true });
   } catch (err) {
     console.error('[acknowledge-delivery] error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to update delivery' });
   }
 });
 
