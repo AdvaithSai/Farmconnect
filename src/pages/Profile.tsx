@@ -9,8 +9,40 @@ import StarRating from '../components/StarRating';
 import { Review } from '../lib/store';
 
 const Profile = () => {
-  const { user, getUserRating } = useAppStore();
+  const { user, getUserRating, updateProfile } = useAppStore();
   const navigate = useNavigate();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', phone: '', address: '' });
+
+  const startEditing = () => {
+    if (!user) return;
+    setProfileForm({ name: user.name, phone: user.phone || '', address: user.address || '' });
+    setShowChangePassword(false);
+    setIsEditing(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = profileForm.name.trim();
+    if (!name) {
+      toast.error('Name cannot be empty.');
+      return;
+    }
+    setIsSavingProfile(true);
+    const { error } = await updateProfile({
+      name,
+      phone: profileForm.phone.trim() || null,
+      address: profileForm.address.trim() || null,
+    });
+    setIsSavingProfile(false);
+    if (error) {
+      toast.error('Could not save your profile. Please try again.');
+    } else {
+      toast.success('Profile updated');
+      setIsEditing(false);
+    }
+  };
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
@@ -36,7 +68,7 @@ const Profile = () => {
         <p className="text-gray-500">You are not logged in.</p>
         <button
           className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          onClick={() => navigate('/auth/login')}
+          onClick={() => navigate('/login')}
         >
           Go to Login
         </button>
@@ -315,12 +347,15 @@ const Profile = () => {
             {/* Action Buttons */}
             <div className="mt-8 pt-6 border-t border-gray-200">
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="flex items-center justify-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <button
+                  onClick={() => (isEditing ? setIsEditing(false) : startEditing())}
+                  className="flex items-center justify-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
                   <Edit size={18} />
-                  <span>Edit Profile</span>
+                  <span>{isEditing ? 'Cancel Editing' : 'Edit Profile'}</span>
                 </button>
-                <button 
-                  onClick={() => setShowChangePassword(!showChangePassword)}
+                <button
+                  onClick={() => { setIsEditing(false); setShowChangePassword(!showChangePassword); }}
                   className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Lock size={18} />
@@ -335,6 +370,77 @@ const Profile = () => {
                 </button>
               </div>
             </div>
+
+            {/* Edit Profile Section */}
+            {isEditing && (
+              <form onSubmit={handleSaveProfile} className="mt-8 pt-6 border-t border-gray-200">
+                <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Edit size={20} className="mr-2 text-green-600" />
+                    Edit Profile
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    Your name and phone number are shown to {user.role === 'farmer' ? 'retailers on your crop listings' : 'farmers you trade with'}.
+                  </p>
+                  <div>
+                    <label htmlFor="profile-name" className="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+                    <input
+                      id="profile-name"
+                      type="text"
+                      required
+                      autoComplete="name"
+                      value={profileForm.name}
+                      onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))}
+                      disabled={isSavingProfile}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="profile-phone" className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
+                    <input
+                      id="profile-phone"
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder="+91 98765 43210"
+                      value={profileForm.phone}
+                      onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
+                      disabled={isSavingProfile}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="profile-address" className="block text-sm font-medium text-gray-700 mb-1">Address (optional)</label>
+                    <textarea
+                      id="profile-address"
+                      rows={2}
+                      autoComplete="street-address"
+                      placeholder="Village, district, state"
+                      value={profileForm.address}
+                      onChange={e => setProfileForm(f => ({ ...f, address: e.target.value }))}
+                      disabled={isSavingProfile}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={isSavingProfile}
+                      className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                      {isSavingProfile ? 'Saving…' : 'Save changes'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      disabled={isSavingProfile}
+                      className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
 
             {/* Change Password Section */}
             {showChangePassword && (

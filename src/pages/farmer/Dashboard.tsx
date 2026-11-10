@@ -62,10 +62,9 @@ const FarmerDashboard = () => {
   }, [user, fetchCrops, fetchUserOffers, fetchFarmerTransactions]);
 
   // Process analytics data when crops or transactions change
+  // Runs for empty data too, otherwise a new farmer sees "Loading analytics..." forever
   useEffect(() => {
-    if (crops.length > 0 || farmerTransactions.length > 0) {
-      processAnalyticsData();
-    }
+    processAnalyticsData();
   }, [crops, farmerTransactions]);
 
   // Process analytics data

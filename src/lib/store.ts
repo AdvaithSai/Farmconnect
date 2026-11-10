@@ -46,7 +46,8 @@ interface AppState {
   logout: () => Promise<void>;
   loginWithGoogle: () => Promise<{ error: unknown | null }>;
   loginWithFacebook: () => Promise<{ error: unknown | null }>;
-  
+  updateProfile: (fields: { name: string; phone: string | null; address: string | null }) => Promise<{ error: unknown | null }>;
+
   // Fetch data
   fetchCrops: () => Promise<void>;
   fetchUserOffers: () => Promise<void>;
@@ -200,6 +201,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   
+  updateProfile: async (fields) => {
+    const user = get().user;
+    if (!user) return { error: new Error('Please log in again.') };
+    try {
+      await setDoc(doc(db, 'users', user.id), fields, { merge: true });
+      set({ user: { ...user, ...fields } });
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  },
+
   // Fetch data with real-time listeners
   fetchCrops: async () => {
     set({ loading: true });

@@ -162,7 +162,7 @@ const AddCrop = () => {
             {/* Expected Price */}
             <div>
               <label htmlFor="price_expectation" className="block text-sm font-medium text-gray-700 mb-1">
-                Expected Price per {formData.unit} ($)
+                Expected Price per {formData.unit} (₹)
               </label>
               <input
                 type="number"
@@ -189,7 +189,7 @@ const AddCrop = () => {
                 name="location"
                 required
                 className="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 p-2 border"
-                placeholder="E.g. Fresno, CA"
+                placeholder="E.g. Nashik, Maharashtra"
                 value={formData.location}
                 onChange={handleChange}
                 disabled={isSubmitting}
