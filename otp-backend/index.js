@@ -329,58 +329,74 @@ app.post('/acknowledge-delivery', requireAuth, async (req, res) => {
 });
 
 // ─── AI Chatbot RAG Route ───────────────────────────────────────────────────
-app.post('/api/ai-chat', async (req, res) => {
-  const { query, context, userName, userRole } = req.body;
-  const apiKey = process.env.GEMINI_API_KEY;
 
+// This route is open to guests and spends the Gemini quota, so it is rate
+// limited per IP and every input is length-capped.
+const AI_CHAT_MAX_PER_MINUTE = 15;
+const aiChatHits = {}; // ip -> { count, windowStart }
+const clip = (value, max) => (typeof value === 'string' ? value : '').slice(0, max);
+
+app.post('/api/ai-chat', async (req, res) => {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.json({ 
-      success: false, 
-      error: 'GEMINI_API_KEY is not configured on the server, using high-fidelity local RAG processing.' 
-    });
+    // The frontend answers from its local knowledge base instead.
+    return res.json({ success: false, error: 'GEMINI_API_KEY is not configured on the server' });
   }
 
-  const systemInstruction = `You are Ramu, the FarmConnect AI Assistant, a friendly and warm agricultural expert.
-Use the following retrieved context documents to answer the user's questions accurately.
-Only provide advice matching the user's specific situation and role: they are a ${userRole.toUpperCase()}. Do NOT provide guidelines meant for the other role unless explicitly asked.
-If the retrieved context does not contain enough info, or the question is unrelated to the website, politely explain that you are Ramu, specialized strictly in FarmConnect direct farmer-to-retailer commerce topics.
+  const now = Date.now();
+  let hits = aiChatHits[req.ip];
+  if (!hits || now - hits.windowStart > 60 * 1000) hits = aiChatHits[req.ip] = { count: 0, windowStart: now };
+  if (++hits.count > AI_CHAT_MAX_PER_MINUTE) {
+    return res.status(429).json({ success: false, error: 'Too many messages. Please wait a moment.' });
+  }
 
-Retrieved Website Context:
-${context}
+  const query = clip(req.body.query, 500).trim();
+  if (!query) return res.status(400).json({ success: false, error: 'query is required' });
+  const context = clip(req.body.context, 4000);
+  const userName = clip(req.body.userName, 80) || 'Guest';
+  const userRole = ['farmer', 'retailer'].includes(req.body.userRole) ? req.body.userRole : 'guest';
 
-User Information:
-Name: ${userName}
-Role: ${userRole}
+  // Earlier turns, oldest first. Gemini requires the conversation to start with a user turn.
+  const history = (Array.isArray(req.body.history) ? req.body.history : [])
+    .slice(-6)
+    .map((m) => ({ role: m && m.sender === 'user' ? 'user' : 'model', parts: [{ text: clip(m && m.text, 1000) }] }))
+    .filter((m) => m.parts[0].text);
+  while (history.length && history[0].role !== 'user') history.shift();
 
-Answer the query professionally, warmly, and concisely, tailored strictly to their role context. Always introduce yourself or sign off as Ramu.`;
+  const systemInstruction = `You are Ramu, the friendly support assistant of FarmConnect, a marketplace where Indian farmers sell crops directly to retailers.
+
+Answer ONLY the question the user asked, in 1 to 4 short sentences. Do not summarise the reference material or list everything it contains; use just the part that answers the question.
+The user is a ${userRole} named ${userName}. Give steps that apply to their role, and do not explain the other role's screens unless they ask.
+Base your answer on the reference material below. If it does not cover the question, say you are not sure and suggest contacting support through this chat; if the question has nothing to do with FarmConnect or farm trading, say that is outside what you can help with.
+Do not introduce yourself in every reply. Plain text only, no markdown.
+
+Reference material:
+${context}`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: systemInstruction },
-              { text: `User Question: ${query}` }
-            ]
-          }
-        ]
-      })
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents: [...history, { role: 'user', parts: [{ text: query }] }],
+        generationConfig: { temperature: 0.3 },
+      }),
     });
 
     const data = await response.json();
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-      const reply = data.candidates[0].content.parts[0].text;
+    const parts = data.candidates?.[0]?.content?.parts;
+    const reply = Array.isArray(parts) ? parts.map((p) => p.text || '').join('').trim() : '';
+    if (reply) {
       res.json({ success: true, reply });
     } else {
-      console.error('Gemini API Error Response:', data);
+      console.error('Gemini API Error Response:', JSON.stringify(data).slice(0, 500));
       res.json({ success: false, error: 'Empty or invalid response from Gemini API' });
     }
   } catch (err) {
     console.error('Failed to query Gemini API:', err);
-    res.json({ success: false, error: err.message });
+    res.json({ success: false, error: 'AI service unavailable' });
   }
 });
 

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAppStore } from '../lib/store';
 import { MessageSquare, X, Send, AlertCircle, CheckCircle, HelpCircle, ShieldAlert } from 'lucide-react';
-import { retrieveRAGContext } from '../lib/chatbotKnowledge';
+import { retrieveRAGContext, answerLocally } from '../lib/chatbotKnowledge';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'react-hot-toast';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 interface ChatMessage {
   id: string;
@@ -95,7 +97,7 @@ const AiChatbot = () => {
       
       try {
         // Attempt to call node backend endpoint
-        const response = await fetch('http://localhost:3000/api/ai-chat', {
+        const response = await fetch(`${BACKEND_URL}/api/ai-chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -103,20 +105,27 @@ const AiChatbot = () => {
             context: ragContext,
             userName: user?.name || 'Guest',
             userRole: activeRole,
-            currentPath: activePath
+            // Earlier turns (minus the canned greeting) so follow-up questions make sense
+            history: messages
+              .filter(m => m.sender !== 'system' && m.id !== 'initial')
+              .slice(-6)
+              .map(m => ({ sender: m.sender, text: m.text }))
           })
         });
         const data = await response.json();
         if (data.success) {
           botReply = data.reply;
         }
-      } catch (err) {
-        console.log("Vite dev node-server fallback, launching situational NLP processor...");
+      } catch {
+        // Backend offline: answer from the local knowledge base below
       }
 
-      // Semantic Local RAG Solver fallback if backend key is missing or offline
+      // Local fallback if the backend is offline or has no AI key: answer only what was asked
       if (!botReply) {
-        if (ragContext.includes('Baseline info:')) {
+        const localAnswer = answerLocally(userText, activeRole, activePath);
+        if (localAnswer) {
+          botReply = localAnswer;
+        } else {
           if (activeRole === 'farmer') {
             botReply = `Namaste! I am Ramu. As a Farmer, I can guide you on crop listing, reviewing bids under "Manage Offers", or streaming live GPS coordinates during delivery. Please ask me specifically about these farmer actions!`;
           } else if (activeRole === 'retailer') {
@@ -124,10 +133,6 @@ const AiChatbot = () => {
           } else {
             botReply = `Hi! I am Ramu. FarmConnect is a secure direct platform linking farmers and retailers. Are you interested in listing crops, making custom bids, secure payments, or tracking shipments? Let me know!`;
           }
-        } else {
-          // Clean up formatting of RAG text to present beautifully
-          const cleanContext = ragContext.replace(/\[Document:.*?\]/g, '•');
-          botReply = `Hi! I am Ramu. Based on your current page and role, here are the official FarmConnect guidelines:\n\n${cleanContext}\n\nI hope this clarifies your query! Let me know if you need any other guidance.`;
         }
       }
 

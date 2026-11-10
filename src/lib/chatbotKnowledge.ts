@@ -72,90 +72,120 @@ export const KNOWLEDGE_BASE: KnowledgeArticle[] = [
   }
 ];
 
+// Which article describes the page the user is on.
+const PAGE_ARTICLES: [pathPart: string, articleId: string][] = [
+  ['add-crop', 'f_add_crop'],
+  ['farmer/offers', 'f_negotiation'],
+  ['retailer/dashboard', 'r_browse_crops'],
+  ['retailer/crop', 'r_browse_crops'],
+  ['retailer/offers', 'r_manage_offers'],
+  ['checkout', 'payment_razorpay'],
+];
+
+const STOPWORDS = new Set([
+  'the', 'and', 'for', 'are', 'can', 'you', 'how', 'what', 'when', 'where', 'who', 'why', 'which',
+  'does', 'did', 'will', 'would', 'should', 'could', 'with', 'this', 'that', 'there', 'here', 'have',
+  'has', 'was', 'not', 'any', 'all', 'from', 'about', 'into', 'want', 'need', 'please', 'tell', 'ramu',
+  'get', 'use', 'using', 'its', 'our', 'your', 'they', 'them', 'page', 'help', 'farmconnect',
+]);
+
+// Meaningful words of a text, lightly stemmed so "offers" matches "offer".
+function tokenize(text: string): string[] {
+  return (text.toLowerCase().match(/[a-z0-9]+/g) || [])
+    .filter(word => word.length > 2 && !STOPWORDS.has(word))
+    .map(word => word.replace(/(ing|s)$/, ''));
+}
+
+const containsToken = (text: string, token: string) => tokenize(text).includes(token);
+
+const isOtherRole = (article: KnowledgeArticle, role: string) =>
+  (role === 'farmer' && article.category === 'retailer') ||
+  (role === 'retailer' && article.category === 'farmer');
+
 /**
- * Perform a context retrieval scoped strictly by user role and page situation.
+ * Articles relevant to the question, best first. The question decides the
+ * ranking; the current page only breaks ties, and answers vague questions
+ * like "what can I do here?".
  */
-export function retrieveRAGContext(
-  queryStr: string,
-  userRole?: 'farmer' | 'retailer' | 'guest' | string,
-  currentPath?: string
-): string {
-  const normalizedQuery = queryStr.toLowerCase().trim();
-  if (!normalizedQuery) return '';
+export function findArticles(queryStr: string, userRole?: string, currentPath?: string): KnowledgeArticle[] {
+  const query = queryStr.toLowerCase().trim();
+  const role = (userRole || 'guest').toLowerCase();
+  const path = (currentPath || '').toLowerCase();
+  const tokens = tokenize(query);
+  const pageArticleId = PAGE_ARTICLES.find(([part]) => path.includes(part))?.[1];
+  const candidates = KNOWLEDGE_BASE.filter(article => !isOtherRole(article, role));
 
-  const cleanRole = (userRole || 'guest').toLowerCase();
-  const cleanPath = (currentPath || '').toLowerCase();
+  const scored = candidates
+    .map(article => {
+      let score = 0;
+      article.keywords.forEach(keyword => {
+        if (query.includes(keyword)) score += 5; // whole phrase asked for
+      });
+      tokens.forEach(token => {
+        if (article.keywords.some(keyword => containsToken(keyword, token))) score += 2;
+        if (containsToken(article.title, token)) score += 2;
+        if (containsToken(article.content, token)) score += 0.5;
+      });
+      if (score > 0 && article.id === pageArticleId) score += 1; // tie-break only
+      return { article, score };
+    })
+    .filter(item => item.score >= 2)
+    .sort((a, b) => b.score - a.score);
 
-  const scoredArticles = KNOWLEDGE_BASE.map(article => {
-    let score = 0;
-
-    // SCENARIO SITUATION FILTERING:
-    // Strictly penalize/exclude articles of the opposite role to avoid role confusion.
-    if (cleanRole === 'farmer' && article.category === 'retailer') {
-      return { article, score: -100 }; // strict penalty
-    }
-    if (cleanRole === 'retailer' && article.category === 'farmer') {
-      return { article, score: -100 }; // strict penalty
-    }
-
-    // SITUATIONAL PATH BOOSTING:
-    // Boost articles based on where the user currently is in the application.
-    if (cleanPath.includes('add-crop') && article.id === 'f_add_crop') {
-      score += 15;
-    }
-    if (cleanPath.includes('farmer/offers') && article.id === 'f_negotiation') {
-      score += 15;
-    }
-    if (cleanPath.includes('retailer/dashboard') && article.id === 'r_browse_crops') {
-      score += 15;
-    }
-    if (cleanPath.includes('retailer/offers') && article.id === 'r_manage_offers') {
-      score += 15;
-    }
-    if (cleanPath.includes('checkout') && article.category === 'payment') {
-      score += 15;
-    }
-    if ((cleanPath.includes('tracking') || cleanPath.includes('delivery')) && article.category === 'delivery') {
-      score += 15;
-    }
-
-    // Check keyword matches in query
-    article.keywords.forEach(keyword => {
-      if (normalizedQuery.includes(keyword)) {
-        score += 5; // high weight for keyword exact inclusion
-      }
-    });
-
-    // Check occurrences in query content words
-    const words = normalizedQuery.split(/\s+/);
-    words.forEach(word => {
-      if (word.length > 2) {
-        if (article.title.toLowerCase().includes(word)) score += 2.0;
-        if (article.content.toLowerCase().includes(word)) score += 0.8;
-      }
-    });
-
-    return { article, score };
-  });
-
-  // Filter articles with score > 0 and sort by highest score
-  const matches = scoredArticles
-    .filter(item => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 2);
-
-  let situationalHeader = `User Context Summary:\n- Active User Role: ${cleanRole.toUpperCase()}\n- Current Webpage Route: ${cleanPath || 'Home Page'}\n\n`;
-
-  if (matches.length === 0) {
-    // Return a default role-appropriate baseline context
-    if (cleanRole === 'farmer') {
-      return situationalHeader + `Baseline info: You are assisting a Farmer on FarmConnect. Farmers can list crops for sale, view bids/offers from retailers on their "Manage Offers" page, chat with retailers to negotiate, and stream GPS tracking during crop delivery.`;
-    } else if (cleanRole === 'retailer') {
-      return situationalHeader + `Baseline info: You are assisting a Retailer on FarmConnect. Retailers can browse active crops on their dashboard, submit bids/offers, track offer status under "My Offers", pay securely via Razorpay escrow when accepted, and view live delivery tracking maps.`;
-    } else {
-      return situationalHeader + `Baseline info: FarmConnect connects Indian farmers directly with retailers. Farmers list crops and manage bids, while retailers browse and bid. Payments are escrowed via Razorpay, and deliveries are tracked in real-time.`;
-    }
+  if (scored.length === 0) {
+    // Nothing in the question matched: only fall back to the page for "here"-type questions.
+    const asksAboutPage = /\b(here|this page|this screen|what (can|do|should) i do)\b/.test(query);
+    const pageArticle = candidates.find(article => article.id === pageArticleId);
+    return asksAboutPage && pageArticle ? [pageArticle] : [];
   }
+  // Keep a second article only if it is nearly as relevant as the first.
+  return scored.filter(item => item.score >= scored[0].score * 0.6).slice(0, 2).map(item => item.article);
+}
 
-  return situationalHeader + matches.map(m => `[Document: ${m.article.title}] ${m.article.content}`).join('\n\n');
+/**
+ * Answer without the AI backend: the sentences of the best article that
+ * address the question. Returns null when nothing relevant is known.
+ */
+export function answerLocally(queryStr: string, userRole?: string, currentPath?: string): string | null {
+  // Best match across both roles, so a retailer asking about a farmer-only
+  // action is told so instead of getting an unrelated retailer answer.
+  const role = (userRole || 'guest').toLowerCase();
+  const [article] = findArticles(queryStr, 'guest', currentPath);
+  if (!article) return null;
+  const prefix = isOtherRole(article, role) ? `That is done by ${article.category}s, not ${role}s. ` : '';
+
+  const tokens = tokenize(queryStr);
+  const sentences = article.content.split(/(?<=[.!?])\s+/).filter(sentence => !sentence.startsWith('Note:'));
+  const ranked = sentences
+    .map((sentence, index) => ({
+      sentence,
+      index,
+      hits: tokens.filter(token => containsToken(sentence, token)).length,
+    }))
+    .filter(item => item.hits > 0)
+    .sort((a, b) => b.hits - a.hits)
+    .slice(0, 2)
+    .sort((a, b) => a.index - b.index);
+
+  return prefix + (ranked.length > 0 ? ranked.map(item => item.sentence) : sentences.slice(0, 2)).join(' ');
+}
+
+/**
+ * Context handed to the AI backend: the relevant articles, or a role baseline.
+ */
+export function retrieveRAGContext(queryStr: string, userRole?: string, currentPath?: string): string {
+  const role = (userRole || 'guest').toLowerCase();
+  const header = `User role: ${role}\nCurrent page: ${currentPath || '/'}\n\n`;
+  const articles = findArticles(queryStr, role, currentPath);
+
+  if (articles.length > 0) {
+    return header + articles.map(article => `[${article.title}] ${article.content}`).join('\n\n');
+  }
+  if (role === 'farmer') {
+    return header + 'Farmers can list crops for sale, view offers from retailers on their "Manage Offers" page, chat with retailers to negotiate, and share live GPS tracking during crop delivery.';
+  }
+  if (role === 'retailer') {
+    return header + 'Retailers can browse crops on their dashboard, make offers, track them under "My Offers", pay through Razorpay once an offer is accepted, and follow the delivery on a live map.';
+  }
+  return header + 'FarmConnect connects Indian farmers directly with retailers. Farmers list crops and manage offers, retailers browse and make offers, payments go through Razorpay, and deliveries are tracked live.';
 }
