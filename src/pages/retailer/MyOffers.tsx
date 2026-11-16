@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../../lib/store';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { toast } from 'react-hot-toast';
 
@@ -71,12 +71,12 @@ const MyOffers = () => {
           offersData.map(async (offer: FirestoreOffer) => {
             try {
               // Fetch crop details
-              const cropDoc = await getDocs(query(collection(db, 'crops'), where('__name__', '==', offer.crop_id)));
+              const cropDoc = await getDoc(doc(db, 'crops', offer.crop_id));
               let cropData: { id: string; farmer_id?: string; name: string; quantity: number; unit: string; location: string; description: string; image_url?: string } | null = null;
-              if (!cropDoc.empty) {
-                const docData = cropDoc.docs[0].data();
+              const docData = cropDoc.data();
+              if (docData) {
                 cropData = {
-                  id: cropDoc.docs[0].id,
+                  id: cropDoc.id,
                   farmer_id: docData.farmer_id || '',
                   name: docData.name || 'Unknown Crop',
                   quantity: docData.quantity ?? 0,
@@ -90,9 +90,9 @@ const MyOffers = () => {
               // Fetch farmer details
               let farmerData = null;
               if (cropData && cropData.farmer_id) {
-                const farmerDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', cropData.farmer_id)));
-                if (!farmerDoc.empty) {
-                  farmerData = { id: farmerDoc.docs[0].id, ...farmerDoc.docs[0].data() };
+                const farmerDoc = await getDoc(doc(db, 'users', cropData.farmer_id));
+                if (farmerDoc.exists()) {
+                  farmerData = { id: farmerDoc.id, ...farmerDoc.data() };
                 }
               }
               

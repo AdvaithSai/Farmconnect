@@ -2,6 +2,38 @@
 
 A marketplace platform that connects farmers and retailers with real-time chat functionality for negotiation and communication.
 
+## Getting started
+
+Requirements: Node.js 20 or newer, a Firebase project (Authentication, Firestore and Storage enabled) and a Razorpay account in test mode.
+
+1. Install dependencies. This also installs the backend's packages.
+
+   ```bash
+   npm install
+   ```
+
+2. Create the two environment files from their templates and fill them in.
+
+   ```bash
+   cp .env.example .env
+   cp otp-backend/.env.example otp-backend/.env
+   ```
+
+   - `.env` holds the Firebase web config and the backend's URL. Everything in it that starts with `VITE_` is shipped to the browser, so never put secrets there.
+   - `otp-backend/.env` holds the secrets: the Firebase service account, the Gmail app password used to send reset codes, the Razorpay key pair and, optionally, a Gemini API key for the assistant.
+
+3. Start the frontend (port 5173) and the backend (port 3000) together.
+
+   ```bash
+   npm run dev
+   ```
+
+Other commands: `npm run build` builds the frontend into `dist/`, and `npm run lint` runs ESLint.
+
+### Deploying
+
+The frontend is a static site. The backend in `otp-backend/` is a separate Node server and must be hosted too: payments, password reset and the AI assistant all depend on it. Set `VITE_BACKEND_URL` in the frontend's hosting environment to the backend's public URL.
+
 ## Features
 
 ### Core Marketplace Features

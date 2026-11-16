@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, MessageCircle, Check, CheckCheck, MapPin } from 'lucide-react';
 import { useAppStore } from '../lib/store';
 import { toast } from 'react-hot-toast';
-import { doc, setDoc, collection, query, where, orderBy, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, orderBy, onSnapshot, writeBatch, arrayUnion } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import LocationTracker from './LocationTracker';
 import { createOrder, verifyPayment } from '../lib/payments';
@@ -62,17 +62,22 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
       where('chat_id', '==', chatId),
       orderBy('created_at', 'asc')
     );
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs: Message[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       setMessages(msgs);
-      // Delivery receipt: mark as delivered for messages not sent by this user
+      // The chat is open, so incoming messages are both delivered and read.
+      // All receipts go out in one batched write (a batch holds up to 500).
       if (user) {
-        for (const msg of msgs) {
-          if (msg.sender_id !== user.id && (!msg.deliveredTo || !msg.deliveredTo.includes(user.id))) {
-            await updateDoc(doc(db, 'messages', msg.id), {
-              deliveredTo: arrayUnion(user.id)
-            });
-          }
+        const unseen = msgs
+          .filter(msg => msg.sender_id !== user.id && !(msg.deliveredTo?.includes(user.id) && msg.readBy?.includes(user.id)))
+          .slice(0, 500);
+        if (unseen.length > 0) {
+          const batch = writeBatch(db);
+          unseen.forEach(msg => batch.update(doc(db, 'messages', msg.id), {
+            deliveredTo: arrayUnion(user.id),
+            readBy: arrayUnion(user.id),
+          }));
+          batch.commit().catch(err => console.error('Failed to save read receipts:', err));
         }
       }
     });
@@ -90,14 +95,6 @@ const Chat: React.FC<ChatProps> = ({ chatId, otherUserName, cropName }) => {
           user_id: user.id,
           last_read_at: latestOtherMsg.created_at,
         });
-      }
-      // Read receipt: mark as read for all messages not sent by this user
-      for (const msg of messages) {
-        if (msg.sender_id !== user.id && (!msg.readBy || !msg.readBy.includes(user.id))) {
-          updateDoc(doc(db, 'messages', msg.id), {
-            readBy: arrayUnion(user.id)
-          });
-        }
       }
     }
     scrollToBottom();

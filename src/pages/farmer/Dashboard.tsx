@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Clock, CheckCircle2, ShoppingCart, MessageCircle, X, User, TrendingUp, IndianRupee, Calendar, BarChart3 } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, ShoppingCart, MessageCircle, X, Pencil, Trash2, TrendingUp, IndianRupee, Calendar, BarChart3 } from 'lucide-react';
 import { useAppStore } from '../../lib/store';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -29,7 +29,17 @@ const statusColors: { [key: string]: string } = {
 
 const FarmerDashboard = () => {
   const navigate = useNavigate();
-  const { user, crops, loading, fetchCrops, userOffers, fetchUserOffers, respondToOffer, farmerTransactions, fetchFarmerTransactions } = useAppStore();
+  const { user, crops, loading, fetchCrops, userOffers, fetchUserOffers, respondToOffer, farmerTransactions, fetchFarmerTransactions, deleteCrop } = useAppStore();
+
+  const handleDeleteCrop = async (crop: Crop) => {
+    if (!window.confirm(`Delete "${crop.name}"? Any pending offers on it will be declined. This cannot be undone.`)) return;
+    const { error } = await deleteCrop(crop.id);
+    if (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not delete the crop.');
+    } else {
+      toast.success('Crop deleted');
+    }
+  };
   const [stats, setStats] = useState({
     totalCrops: 0,
     availableCrops: 0,
@@ -539,6 +549,9 @@ const FarmerDashboard = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -584,6 +597,29 @@ const FarmerDashboard = () => {
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[String(crop.status)]}`}>
                         {crop.status.charAt(0).toUpperCase() + crop.status.slice(1)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      {/* Only open listings can change: an accepted offer fixes the details */}
+                      {crop.status === 'available' && (
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            onClick={() => navigate(`/farmer/edit-crop/${crop.id}`)}
+                            aria-label={`Edit ${crop.name}`}
+                            title="Edit"
+                            className="p-2 rounded-md text-gray-500 hover:text-green-700 hover:bg-green-50 transition-colors"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCrop(crop)}
+                            aria-label={`Delete ${crop.name}`}
+                            title="Delete"
+                            className="p-2 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -868,7 +904,7 @@ const FarmerDashboard = () => {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {analyticsData.retailerBreakdown.map((entry, index) => (
+                        {analyticsData.retailerBreakdown.map((_entry, index) => (
                           <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
                         ))}
                       </Pie>

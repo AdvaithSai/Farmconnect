@@ -1,15 +1,19 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../../lib/store';
 import { storage } from '../../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const cropUnits = ['kg', 'ton', 'bushel', 'lb', 'crate', 'box'];
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const AddCrop = () => {
   const navigate = useNavigate();
-  const { addCrop } = useAppStore();
+  // With an :id in the URL this page edits that listing instead of creating one
+  const { id: editId } = useParams<{ id: string }>();
+  const { user, crops, addCrop, updateCrop, fetchCrops } = useAppStore();
+  const editingCrop = editId ? crops.find(c => c.id === editId) : undefined;
   
   const [formData, setFormData] = useState({
     name: '',
@@ -25,6 +29,28 @@ const AddCrop = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Editing after a page reload: the store is empty until crops are fetched
+  useEffect(() => {
+    if (editId && user && crops.length === 0) fetchCrops();
+  }, [editId, user, crops.length, fetchCrops]);
+
+  // Prefill the form once the listing being edited is available
+  useEffect(() => {
+    if (!editingCrop) return;
+    setFormData({
+      name: editingCrop.name,
+      description: editingCrop.description,
+      quantity: editingCrop.quantity,
+      unit: editingCrop.unit,
+      price_expectation: editingCrop.price_expectation ?? 0,
+      location: editingCrop.location,
+      harvest_date: editingCrop.harvest_date,
+      image_url: editingCrop.image_url ?? ''
+    });
+    setImagePreview(editingCrop.image_url ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when a different listing loads
+  }, [editingCrop?.id]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -39,34 +65,46 @@ const AddCrop = () => {
   
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    if (file && !file.type.startsWith('image/')) {
+      toast.error('Please choose an image file.');
+      e.target.value = '';
+      return;
+    }
+    if (file && file.size > MAX_IMAGE_BYTES) {
+      toast.error('That photo is larger than 5 MB. Please choose a smaller one.');
+      e.target.value = '';
+      return;
+    }
     setImageFile(file);
     if (file) {
       setImagePreview(URL.createObjectURL(file));
     } else {
-      setImagePreview(null);
+      setImagePreview(editingCrop?.image_url ?? null);
     }
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    let imageUrl = '';
+    let imageUrl = formData.image_url; // keeps the current photo when editing without a new one
     
     try {
       if (imageFile) {
-        const storageRef = ref(storage, `crop-images/${Date.now()}-${imageFile.name}`);
+        // The uploader's id is part of the file name so storage rules can tie a photo to its owner
+        const storageRef = ref(storage, `crop-images/${user?.id}-${Date.now()}-${imageFile.name}`);
         await uploadBytes(storageRef, imageFile);
         imageUrl = await getDownloadURL(storageRef);
       }
-      const { error } = await addCrop({ ...formData, image_url: imageUrl });
+      const cropData = { ...formData, image_url: imageUrl };
+      const { error } = editId ? await updateCrop(editId, cropData) : await addCrop(cropData);
       
       if (error) {
         const errorMsg = typeof error === 'object' && error !== null && 'message' in error && typeof (error as unknown as { message?: string }).message === 'string'
           ? (error as unknown as { message: string }).message
-          : JSON.stringify(error) || 'Failed to add crop';
+          : JSON.stringify(error) || 'Failed to save crop';
         toast.error(errorMsg);
       } else {
-        toast.success('Crop added successfully!');
+        toast.success(editId ? 'Crop updated' : 'Crop added successfully!');
         navigate('/farmer/dashboard');
       }
     } catch (error) {
@@ -80,7 +118,7 @@ const AddCrop = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Add New Crop</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{editId ? 'Edit Crop' : 'Add New Crop'}</h1>
         
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -246,7 +284,7 @@ const AddCrop = () => {
                 className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-400 disabled:cursor-not-allowed"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Adding Crop...' : 'Add Crop'}
+                {isSubmitting ? 'Saving…' : editId ? 'Save Changes' : 'Add Crop'}
               </button>
             </div>
           </form>

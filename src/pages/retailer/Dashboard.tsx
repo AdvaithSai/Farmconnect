@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Search, Filter, ShoppingBag, MessageCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../../lib/store';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import ThemeLoader from '../../components/ThemeLoader';
 import { createOrder, verifyPayment } from '../../lib/payments';
@@ -71,9 +71,9 @@ const RetailerDashboard = () => {
       await Promise.all(uniqueCropIds.map(async (id) => {
         if (!id) return;
         try {
-          const cropDoc = await getDocs(query(collection(db, 'crops'), where('__name__', '==', id)));
-          if (!cropDoc.empty) {
-            const data = cropDoc.docs[0].data();
+          const cropDoc = await getDoc(doc(db, 'crops', id));
+          const data = cropDoc.data();
+          if (data) {
             cropNameMap[id] = data.name || id;
             cropQuantities[id] = data.quantity || 1;
           } else {
@@ -88,9 +88,9 @@ const RetailerDashboard = () => {
       await Promise.all(uniqueFarmerIds.map(async (id) => {
         if (!id) return;
         try {
-          const farmerDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', id)));
-          if (!farmerDoc.empty) {
-            const data = farmerDoc.docs[0].data();
+          const farmerDoc = await getDoc(doc(db, 'users', id));
+          const data = farmerDoc.data();
+          if (data) {
             farmerNameMap[id] = data.name || id;
           } else {
             farmerNameMap[id] = id;

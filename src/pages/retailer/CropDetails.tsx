@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { ArrowLeft, User, MapPin, Calendar, Info, IndianRupee, MessageCircle } from 'lucide-react';
-import { useAppStore, Review } from '../../lib/store';
+import { useAppStore } from '../../lib/store';
 import ThemeLoader from '../../components/ThemeLoader';
 import StarRating from '../../components/StarRating';
 

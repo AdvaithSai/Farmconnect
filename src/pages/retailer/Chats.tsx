@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, MessageCircle } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../../lib/store';

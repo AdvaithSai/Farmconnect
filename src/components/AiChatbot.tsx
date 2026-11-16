@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAppStore } from '../lib/store';
-import { MessageSquare, X, Send, AlertCircle, CheckCircle, HelpCircle, ShieldAlert } from 'lucide-react';
+import { MessageSquare, X, Send, AlertCircle, HelpCircle, ShieldAlert } from 'lucide-react';
 import { retrieveRAGContext, answerLocally } from '../lib/chatbotKnowledge';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -27,8 +27,6 @@ const AiChatbot = () => {
   const [escalating, setEscalating] = useState(false);
   const [ticketPhone, setTicketPhone] = useState('');
   const [ticketDesc, setTicketDesc] = useState('');
-  const [ticketCreated, setTicketCreated] = useState(false);
-  const [ticketId, setTicketId] = useState('');
 
   const { user } = useAppStore();
   const location = useLocation();
@@ -175,7 +173,6 @@ const AiChatbot = () => {
       messages.map(m => `${m.sender.toUpperCase()}: ${m.text}`).join('\n')
     );
     setEscalating(true);
-    setTicketCreated(false);
   };
 
   const handleEscalationSubmit = async (e: React.FormEvent) => {
@@ -197,8 +194,6 @@ const AiChatbot = () => {
         createdAt: new Date().toISOString()
       });
 
-      setTicketId(ticketRef.id);
-      setTicketCreated(true);
       setMessages(prev => [
         ...prev,
         {

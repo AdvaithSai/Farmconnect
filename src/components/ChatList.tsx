@@ -70,19 +70,22 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId }) => 
   useEffect(() => {
     const fetchChatDetails = async () => {
       const details: { [key: string]: { cropName: string; otherUserName: string } } = {};
-      for (const chat of chats) {
+      await Promise.all(chats.map(async (chat) => {
         try {
-          const cropDoc = await getDoc(doc(db, 'crops', chat.crop_id));
-          const cropName = cropDoc.exists() ? cropDoc.data().name : 'Unknown Crop';
           const otherUserId = user?.role === 'farmer' ? chat.retailer_id : chat.farmer_id;
-          const otherUserDoc = await getDoc(doc(db, 'users', otherUserId));
-          const otherUserName = otherUserDoc.exists() ? otherUserDoc.data().name : 'Unknown User';
-          details[chat.id] = { cropName, otherUserName };
+          const [cropDoc, otherUserDoc] = await Promise.all([
+            getDoc(doc(db, 'crops', chat.crop_id)),
+            getDoc(doc(db, 'users', otherUserId)),
+          ]);
+          details[chat.id] = {
+            cropName: cropDoc.exists() ? cropDoc.data().name : 'Unknown Crop',
+            otherUserName: otherUserDoc.exists() ? otherUserDoc.data().name : 'Unknown User',
+          };
         } catch (error) {
           console.error('Error fetching chat details:', error);
           details[chat.id] = { cropName: 'Unknown Crop', otherUserName: 'Unknown User' };
         }
-      }
+      }));
       setChatDetails(details);
     };
     if (chats.length > 0) {

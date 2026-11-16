@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { create } from 'zustand';
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, signInWithPopup, UserCredential } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, addDoc, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, addDoc, query, where, getDocs, onSnapshot, writeBatch } from 'firebase/firestore';
 import type { Database } from './database.types';
 
 type User = Database['public']['Tables']['users']['Row'];
@@ -57,6 +57,8 @@ interface AppState {
   
   // Farmer actions
   addCrop: (cropData: Partial<Crop>) => Promise<{ error: unknown | null, crop: Crop | null }>;
+  updateCrop: (cropId: string, cropData: Partial<Crop>) => Promise<{ error: unknown | null }>;
+  deleteCrop: (cropId: string) => Promise<{ error: unknown | null }>;
   updateCropStatus: (cropId?: string, status?: 'available' | 'pending' | 'sold') => Promise<{ error: unknown | null }>;
   
   // Retailer actions
@@ -391,6 +393,56 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   
+  // A listing can only be changed or removed while it is still open: once an
+  // offer is accepted the retailer has agreed to these exact details.
+  updateCrop: async (cropId, cropData) => {
+    const user = get().user;
+    const crop = get().crops.find(c => c.id === cropId);
+    if (!user || !crop || crop.farmer_id !== user.id) {
+      return { error: new Error('Crop not found.') };
+    }
+    if (crop.status !== 'available') {
+      return { error: new Error('This crop has an accepted offer and can no longer be edited.') };
+    }
+    try {
+      await setDoc(doc(db, 'crops', cropId), {
+        name: cropData.name || '',
+        description: cropData.description || '',
+        quantity: cropData.quantity || 0,
+        unit: cropData.unit || '',
+        price_expectation: cropData.price_expectation ?? null,
+        location: cropData.location || '',
+        harvest_date: cropData.harvest_date || '',
+        image_url: cropData.image_url ?? null,
+      }, { merge: true });
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  },
+
+  deleteCrop: async (cropId) => {
+    const user = get().user;
+    const crop = get().crops.find(c => c.id === cropId);
+    if (!user || !crop || crop.farmer_id !== user.id) {
+      return { error: new Error('Crop not found.') };
+    }
+    if (crop.status !== 'available') {
+      return { error: new Error('This crop has an accepted offer and can no longer be deleted.') };
+    }
+    try {
+      // Close any offers still waiting on this crop so retailers are not left hanging
+      const pending = await getDocs(query(collection(db, 'offers'), where('crop_id', '==', cropId), where('status', '==', 'pending')));
+      const batch = writeBatch(db);
+      pending.forEach(offer => batch.update(offer.ref, { status: 'rejected' }));
+      batch.delete(doc(db, 'crops', cropId));
+      await batch.commit();
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  },
+
   updateCropStatus: async (cropId?: string, status?: 'available' | 'pending' | 'sold') => {
     if (!cropId || !status) {
       return { error: new Error('cropId and status are required') };
@@ -642,7 +694,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           const offersCol = collection(db, 'offers');
           const offersQuery = query(offersCol, where('crop_id', '==', offerData.crop_id), where('status', '==', 'pending'));
           const offersSnap = await getDocs(offersQuery);
-          const batch = (await import('firebase/firestore')).writeBatch(db);
+          const batch = writeBatch(db);
           offersSnap.forEach(docSnap => {
             if (docSnap.id !== offerId) {
               batch.set(doc(db, 'offers', docSnap.id), { status: 'rejected' }, { merge: true });

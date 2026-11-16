@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAppStore } from './lib/store';
 
@@ -5,23 +6,30 @@ import { useAppStore } from './lib/store';
 import MainLayout from './layouts/MainLayout';
 import AuthLayout from './layouts/AuthLayout';
 
-// Pages
+// Pages: the landing page ships in the main bundle, everything else loads when visited
 import Home from './pages/Home';
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import FarmerDashboard from './pages/farmer/Dashboard';
-import AddCrop from './pages/farmer/AddCrop';
-import ManageOffers from './pages/farmer/ManageOffers';
-import FarmerChats from './pages/farmer/Chats';
-import RetailerDashboard from './pages/retailer/Dashboard';
-import CropDetails from './pages/retailer/CropDetails';
-import MyOffers from './pages/retailer/MyOffers';
-import Checkout from './pages/retailer/Checkout';
-import RetailerChats from './pages/retailer/Chats';
-import NotFound from './pages/NotFound';
-import TransactionDetails from './pages/retailer/TransactionDetails';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import Profile from './pages/Profile';
+import ThemeLoader from './components/ThemeLoader';
+const Login = lazy(() => import('./pages/auth/Login'));
+const Register = lazy(() => import('./pages/auth/Register'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const FarmerDashboard = lazy(() => import('./pages/farmer/Dashboard'));
+const AddCrop = lazy(() => import('./pages/farmer/AddCrop'));
+const ManageOffers = lazy(() => import('./pages/farmer/ManageOffers'));
+const FarmerChats = lazy(() => import('./pages/farmer/Chats'));
+const RetailerDashboard = lazy(() => import('./pages/retailer/Dashboard'));
+const CropDetails = lazy(() => import('./pages/retailer/CropDetails'));
+const MyOffers = lazy(() => import('./pages/retailer/MyOffers'));
+const Checkout = lazy(() => import('./pages/retailer/Checkout'));
+const RetailerChats = lazy(() => import('./pages/retailer/Chats'));
+const TransactionDetails = lazy(() => import('./pages/retailer/TransactionDetails'));
+const Profile = lazy(() => import('./pages/Profile'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+const PageLoading = () => (
+  <div className="min-h-[60vh] flex items-center justify-center">
+    <ThemeLoader />
+  </div>
+);
 
 // Protected route wrapper
 const ProtectedRoute = ({ 
@@ -52,6 +60,7 @@ const ProtectedRoute = ({
 
 function App() {
   return (
+    <Suspense fallback={<PageLoading />}>
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<MainLayout />}>
@@ -72,6 +81,7 @@ function App() {
         }>
           <Route path="dashboard" element={<FarmerDashboard />} />
           <Route path="add-crop" element={<AddCrop />} />
+          <Route path="edit-crop/:id" element={<AddCrop />} />
           <Route path="offers" element={<ManageOffers />} />
           <Route path="chats" element={<FarmerChats />} />
         </Route>
@@ -101,6 +111,7 @@ function App() {
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
+    </Suspense>
   );
 }
 

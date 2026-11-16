@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { doc, updateDoc, setDoc, onSnapshot, GeoPoint } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { doc, setDoc, onSnapshot, GeoPoint } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAppStore } from '../lib/store';
 import { toast } from 'react-hot-toast';

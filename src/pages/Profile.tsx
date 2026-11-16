@@ -98,7 +98,6 @@ const Profile = () => {
     if (!password) return { score: 0, label: '', color: '' };
     
     let score = 0;
-    let feedback = [];
     
     if (password.length >= 8) score += 1;
     if (/[a-z]/.test(password)) score += 1;
